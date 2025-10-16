@@ -56,7 +56,7 @@ export const deleteAllSessionExceptCurrent = asyncHandler(async(req, res)=>{
     });
 
     return res.json(new ApiResponse({
-        message: "Session deleted successfully"
+        message: "All Session deleted successfully"
     }))
 });
 
