@@ -1,0 +1,24 @@
+interface IUser {
+  id: string;
+  name: string;
+  email: string;
+  isVerified: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface ILoginResponse {
+  user: IUser;
+  access_token: string;
+  message: string;
+}
+
+interface IResgisterResponse {
+  user: IUser;
+  message: string;
+}
+
+interface IRefreshResponse {
+  access_token: string;
+  message: string;
+}

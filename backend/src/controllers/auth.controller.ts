@@ -162,7 +162,6 @@ export const VerifyUser = asyncHandler(async (req, res) => {
 
   res.status(200).json(
     new ApiResponse({
-      user: userWithoutSensitive,
       message: "Email verified successfully"
     })
   );

@@ -1,4 +1,4 @@
-import { z} from 'zod';
+import { z, infer as zodInfer } from 'zod';
 
 // Registration Schema
 const RegistrationSchema = z.object({
@@ -92,7 +92,23 @@ const ResetPasswordSchema = z.object({
         'Password must contain at least one lowercase letter, one uppercase letter, and one number'),
 });
 
+type IRegistrationSchema = zodInfer<typeof RegistrationSchema>;
+type ILoginSchema = zodInfer<typeof LoginSchema>;
+type IVerifySchema = zodInfer<typeof VerifySchema>;
+type ICheckVerificationCodeSchema = zodInfer<typeof CheckVerificationCodeSchema>;
+type IForgotPasswordSchema = zodInfer<typeof ForgotPasswordSchema>;
+type IResendVerificationCodeSchema = zodInfer<typeof ResendVerificationCodeSchema>;
+type IResetPasswordSchema = zodInfer<typeof ResetPasswordSchema>;
 
+export type {
+    IRegistrationSchema,
+    ILoginSchema,
+    IVerifySchema,
+    ICheckVerificationCodeSchema,
+    IForgotPasswordSchema,
+    IResendVerificationCodeSchema,
+    IResetPasswordSchema
+}
 
 export{
     RegistrationSchema,
