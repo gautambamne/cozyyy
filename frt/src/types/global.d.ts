@@ -10,6 +10,6 @@ interface ApiError {
     errors : Record<string, string>;
 }
 
-interface IUniversalMessae {
+interface IUniversalMessage {
     message: string
 }

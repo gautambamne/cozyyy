@@ -1,13 +1,16 @@
 -- CreateEnum
 CREATE TYPE "OrderStatus" AS ENUM ('PENDING', 'CONFIRMED', 'SHIPPED', 'DELIVERED', 'CANCELLED');
 
+-- CreateEnum
+CREATE TYPE "Role" AS ENUM ('USER', 'VENDOR');
+
 -- CreateTable
 CREATE TABLE "User" (
     "id" TEXT NOT NULL,
     "email" TEXT NOT NULL,
     "password" TEXT NOT NULL,
     "name" TEXT NOT NULL,
-    "phone" TEXT,
+    "roles" "Role"[],
     "isVerified" BOOLEAN NOT NULL DEFAULT false,
     "verificationCode" TEXT,
     "verificationExpiry" TIMESTAMP(3),

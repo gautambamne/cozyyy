@@ -2,6 +2,7 @@ interface IUser {
   id: string;
   name: string;
   email: string;
+  roles: string[];
   isVerified: boolean;
   createdAt: string;
   updatedAt: string;

@@ -19,6 +19,7 @@ import {
   verificationUtils,
 } from "../utils/auth-utils";
 import { zodErrorFormatter } from "../utils/error-formater";
+import { EmailService } from "../utils/mail.service";
 
 
 export const sanitizeUser = (user: User)=>{
@@ -36,6 +37,7 @@ const handleAuthSuccess = async(user: User, message:string, req: any, res: any)=
     name: user.name,
     email: user.email,
     isVerified: user.isVerified,
+    roles: (user as any).roles || ['USER'],
 
   });
 
@@ -97,6 +99,7 @@ export const RegisterController = asyncHandler(async (req, res) => {
         name,
         email,
         password: hashedPassword,
+        roles: ['USER'], // Default role for new users
         verificationCode,
         verificationExpiry: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes from now
     });
@@ -117,6 +120,12 @@ export const RegisterController = asyncHandler(async (req, res) => {
     verificationExpiry: ___,
     ...userWithoutSensitive
   } = userToBeReturned;
+
+  // Send verification email (non-blocking)
+  EmailService.sendVerificationEmail(email, verificationCode, name).catch((error) => {
+    console.error('Failed to send verification email:', error);
+    // Don't throw error - registration was successful even if email fails
+  });
 
   return res.status(statusCode).json(
     new ApiResponse({
@@ -211,7 +220,11 @@ export const ForgotPasswordController = asyncHandler(async(req, res)=>{
       verificationExpiry: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes from now
   });
 
-  // TODO: Mail Functionality
+  // Send password reset email (non-blocking)
+  EmailService.sendPasswordResetEmail(email, verificationCode, existingUser.name).catch((error) => {
+    console.error('Failed to send password reset email:', error);
+  });
+
   res.status(200).json(
   new ApiResponse({
     message: `Verification code sent to your email`
@@ -243,7 +256,10 @@ export const ResesndVerificationCodeController = asyncHandler(async(req, res)=>{
       verificationExpiry: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes 
   });
 
-  // TODO: Mail Functionality
+  // Resend verification email (non-blocking)
+  EmailService.resendVerificationEmail(email, verificationCode, existingUser.name).catch((error) => {
+    console.error('Failed to resend verification email:', error);
+  });
 
   return res.status(200).json(
   new ApiResponse({

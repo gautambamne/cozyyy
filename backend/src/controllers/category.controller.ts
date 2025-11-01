@@ -151,7 +151,6 @@ export const DeleteCategoryController = asyncHandler(async (req, res) => {
 
   res.status(200).json(
     new ApiResponse({
-      category: deletedCategory,
       message: "Category deleted successfully",
     })
   );

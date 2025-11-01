@@ -7,6 +7,8 @@ export interface IAccessPayload {
     name: User['name'];
     email: User['email'];
     isVerified: User['isVerified'];
+    // roles array - user can have multiple roles (USER, VENDOR, etc.)
+    roles?: string[];
 }
 
 export interface IRefreshPayload {

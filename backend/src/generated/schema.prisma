@@ -16,6 +16,7 @@ model User {
   email              String    @unique
   password           String
   name               String
+  roles              Role[]
   isVerified         Boolean   @default(false)
   verificationCode   String?
   verificationExpiry DateTime?
@@ -152,4 +153,9 @@ enum OrderStatus {
   SHIPPED
   DELIVERED
   CANCELLED
+}
+
+enum Role {
+  USER
+  VENDOR
 }

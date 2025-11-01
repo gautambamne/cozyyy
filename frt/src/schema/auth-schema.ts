@@ -108,7 +108,7 @@ export type {
     IForgotPasswordSchema,
     IResendVerificationCodeSchema,
     IResetPasswordSchema
-}
+};
 
 export{
     RegistrationSchema,

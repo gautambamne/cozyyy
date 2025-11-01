@@ -7,6 +7,8 @@ import {
   DeleteCategoryController,
   GetActiveCategoriesController,
 } from '../controllers/category.controller';
+import { AuthMiddleware } from '../middleware/aurth.middlewate';
+import { requireRole } from '../middleware/role.middleware';
 
 const categoryRouter = Router();
 
@@ -17,8 +19,8 @@ categoryRouter.get('/:id', GetCategoryController);
 
 // Protected routes (authentication required for write operations)
 // Note: You may want to add authentication middleware here
-categoryRouter.post('/', CreateCategoryController);
-categoryRouter.put('/:id', UpdateCategoryController);
-categoryRouter.delete('/:id', DeleteCategoryController);
+categoryRouter.post('/', AuthMiddleware, requireRole(['VENDOR']), CreateCategoryController);
+categoryRouter.put('/:id', AuthMiddleware, requireRole(['VENDOR']), UpdateCategoryController);
+categoryRouter.delete('/:id', AuthMiddleware, requireRole(['VENDOR']), DeleteCategoryController);
 
 export default categoryRouter;

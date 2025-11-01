@@ -10,8 +10,8 @@ export const AuthAction = {
         return response.data.data
     },
 
-    VerifyAction: async (data: IVerifySchema): Promise<IUniversalMessae>=>{
-        const response = await axiosInstance.post<ApiResponse<IUniversalMessae>>("/auth/verify-email", data)
+    VerifyAction: async (data: IVerifySchema): Promise<IUniversalMessage>=>{
+        const response = await axiosInstance.post<ApiResponse<IUniversalMessage>>("/auth/verify-email", data)
         if (!response.data.data) {
             throw new Error(response.data.apiError?.message || "Verification failed")
         }
@@ -34,40 +34,40 @@ export const AuthAction = {
         return response.data.data;
     },
 
-    ResendVerificationCodeAction: async (data: IResendVerificationCodeSchema): Promise<IUniversalMessae> => {
-        const response = await axiosInstance.post<ApiResponse<IUniversalMessae>>("/auth/resend-verification-code", data);
+    ResendVerificationCodeAction: async (data: IResendVerificationCodeSchema): Promise<IUniversalMessage> => {
+        const response = await axiosInstance.post<ApiResponse<IUniversalMessage>>("/auth/resend-verification-code", data);
         if (!response.data.data) {
             throw new Error(response.data.apiError?.message || "Resend verification code failed")
         }
         return response.data.data;
     },
     
-    ForgotPasswordAction: async (data:IForgotPasswordSchema): Promise<IUniversalMessae> => {
-        const response = await axiosInstance.post<ApiResponse<IUniversalMessae>>("/auth/forgot-password", data);
+    ForgotPasswordAction: async (data:IForgotPasswordSchema): Promise<IUniversalMessage> => {
+        const response = await axiosInstance.post<ApiResponse<IUniversalMessage>>("/auth/forgot-password", data);
         if (!response.data.data) {
             throw new Error(response.data.apiError?.message || "Forgot password failed")
         }
         return response.data.data;
     },
     
-    CheckVerificationCodeAction: async (data:ICheckVerificationCodeSchema): Promise<IUniversalMessae> => {
-        const response = await axiosInstance.post<ApiResponse<IUniversalMessae>>("/auth/check-verification-code", data);
+    CheckVerificationCodeAction: async (data:ICheckVerificationCodeSchema): Promise<IUniversalMessage> => {
+        const response = await axiosInstance.post<ApiResponse<IUniversalMessage>>("/auth/check-verification-code", data);
         if (!response.data.data) {
             throw new Error(response.data.apiError?.message || "Check verification code failed")
         }
         return response.data.data;
     },
     
-    ResetPasswordAction: async (data: IResetPasswordSchema): Promise<IUniversalMessae> => {
-        const response = await axiosInstance.post<ApiResponse<IUniversalMessae>>("/auth/reset-password", data);
+    ResetPasswordAction: async (data: IResetPasswordSchema): Promise<IUniversalMessage> => {
+        const response = await axiosInstance.post<ApiResponse<IUniversalMessage>>("/auth/reset-password", data);
         if (!response.data.data) {
             throw new Error(response.data.apiError?.message || "Reset password failed")
         }
         return response.data.data;
     },
 
-    LogoutAction: async (): Promise<IUniversalMessae> => {
-        const response = await axiosInstance.post<ApiResponse<IUniversalMessae>>("/auth/logout");
+    LogoutAction: async (): Promise<IUniversalMessage> => {
+        const response = await axiosInstance.post<ApiResponse<IUniversalMessage>>("/auth/logout");
         if (!response.data.data) {
             throw new Error(response.data.apiError?.message || "Logout failed")
         }
