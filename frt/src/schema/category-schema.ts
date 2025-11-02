@@ -11,7 +11,7 @@ const CreateCategorySchema = z.object({
       .max(100, 'Category slug too long')
       .regex(/^[a-z0-9-]+$/, 'Slug must contain only lowercase letters, numbers, and hyphens')
       .trim(),
-    isActive: z.boolean().optional().default(true),
+    isActive: z.boolean()
 });
 
 // Update Category Schema
@@ -27,7 +27,7 @@ const UpdateCategorySchema = z.object({
       .regex(/^[a-z0-9-]+$/, 'Slug must contain only lowercase letters, numbers, and hyphens')
       .trim()
       .optional(),
-    isActive: z.boolean().optional(),
+    isActive: z.boolean()
 }).refine((data) => data.name || data.slug || data.isActive !== undefined, {
     message: 'At least one field (name, slug, or isActive) must be provided for update',
 });

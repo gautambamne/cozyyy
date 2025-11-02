@@ -1,7 +1,6 @@
 
 import {create} from "zustand";
 import {setCookie , getCookie} from "cookies-next/client"
-// import {persist} from "zustand/middleware";
 
 interface AuthStore {
     isAuthenticated: boolean;
@@ -10,16 +9,14 @@ interface AuthStore {
     setLogout: () => void;
 };
 
-
-
 const useAuthStore = create<AuthStore>()(
-    // persist(
         (set) => {
             const token = getCookie('auth_token') as string | null;
+            const savedUser = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('auth-storage') || '{}')?.state?.user : null;
 
             return {
                 isAuthenticated: !!token,
-                user: null,
+                user: savedUser,
                 setLogin: (data: ILoginResponse) => {
                     setCookie('auth_token', data.access_token, {
                         httpOnly: false,
@@ -41,10 +38,8 @@ const useAuthStore = create<AuthStore>()(
                 },
             };
         },
-        // {
-        //     name: 'auth-storage', 
-        // }
-    // )
-);
+     
+    );
+
 
 export default useAuthStore;
