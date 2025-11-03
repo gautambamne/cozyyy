@@ -6,6 +6,7 @@ import { errorMiddleware } from './middleware/error.middleware'
 import authRouter from './router/auth.route'
 import sessionRouter from './router/session.route'
 import categoryRouter from './router/category.route'
+import productRouter from './router/product.route'
 
 const app = express();
 
@@ -25,6 +26,7 @@ app.use(cookieParser())
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/session', sessionRouter);
 app.use('/api/v1/categories', categoryRouter);
+app.use('/api/v1/products', productRouter);
 
 
 // Error handling middleware (should be last)

@@ -6,11 +6,8 @@ const CreateProductSchema = z.object({
       .min(1, 'Product name is required')
       .max(200, 'Product name too long')
       .trim(),
-    slug: z.string()
-      .min(1, 'Product slug is required')
-      .max(200, 'Product slug too long')
-      .regex(/^[a-z0-9-]+$/, 'Slug must contain only lowercase letters, numbers, and hyphens')
-      .trim(),
+    jewelrySize: z.enum(['SMALL', 'MEDIUM', 'LARGE', 'EXTRA_LARGE', 'CUSTOM'])
+      .optional(),
     description: z.string()
       .min(1, 'Product description is required')
       .max(2000, 'Product description too long')
@@ -21,7 +18,8 @@ const CreateProductSchema = z.object({
     salePrice: z.number()
       .positive('Sale price must be greater than 0')
       .max(999999.99, 'Sale price too high')
-      .optional(),
+      .optional()
+      .nullable(),
     stock: z.number()
       .int('Stock must be a whole number')
       .min(0, 'Stock cannot be negative')
@@ -31,8 +29,8 @@ const CreateProductSchema = z.object({
       .max(10, 'Maximum 10 images allowed'),
     categoryId: z.string()
       .uuid('Invalid category ID format'),
-    isActive: z.boolean().optional().default(true),
-    isFeatured: z.boolean().optional().default(false),
+    isActive: z.boolean()
+      .default(true)
 });
 
 // Update Product Schema
@@ -42,11 +40,7 @@ const UpdateProductSchema = z.object({
       .max(200, 'Product name too long')
       .trim()
       .optional(),
-    slug: z.string()
-      .min(1, 'Product slug is required')
-      .max(200, 'Product slug too long')
-      .regex(/^[a-z0-9-]+$/, 'Slug must contain only lowercase letters, numbers, and hyphens')
-      .trim()
+    jewelrySize: z.enum(['SMALL', 'MEDIUM', 'LARGE', 'EXTRA_LARGE', 'CUSTOM'])
       .optional(),
     description: z.string()
       .min(1, 'Product description is required')
@@ -73,12 +67,11 @@ const UpdateProductSchema = z.object({
       .uuid('Invalid category ID format')
       .optional(),
     isActive: z.boolean().optional(),
-    isFeatured: z.boolean().optional(),
 }).refine((data) => {
     // At least one field must be provided for update
-    return data.name || data.slug || data.description || data.price !== undefined ||
+    return data.name || data.description || data.jewelrySize !== undefined || data.price !== undefined ||
            data.salePrice !== undefined || data.stock !== undefined || data.images ||
-           data.categoryId || data.isActive !== undefined || data.isFeatured !== undefined;
+           data.categoryId || data.isActive !== undefined;
 }, {
     message: 'At least one field must be provided for update',
 });
@@ -114,14 +107,7 @@ const GetProductsQuerySchema = z.object({
         if (val === 'false') return false;
         return undefined;
       }),
-    isFeatured: z.string()
-      .optional()
-      .transform((val) => {
-        if (val === 'true') return true;
-        if (val === 'false') return false;
-        return undefined;
-      }),
-    sortBy: z.enum(['name', 'price', 'createdAt', 'stock'])
+    sortBy: z.enum(['name', 'price', 'createdAt', 'stock', 'jewelrySize'])
       .optional()
       .default('createdAt'),
     sortOrder: z.enum(['asc', 'desc'])
@@ -139,20 +125,14 @@ const GetProductSchema = z.object({
 const ProductResponseSchema = z.object({
     id: z.string().uuid(),
     name: z.string(),
-    slug: z.string(),
+    jewelrySize: z.enum(['SMALL', 'MEDIUM', 'LARGE', 'EXTRA_LARGE', 'CUSTOM']).nullable(),
     description: z.string(),
     price: z.number(),
     salePrice: z.number().nullable(),
     stock: z.number(),
     images: z.array(z.string()),
     categoryId: z.string().uuid(),
-    category: z.object({
-        id: z.string().uuid(),
-        name: z.string(),
-        slug: z.string(),
-    }),
     isActive: z.boolean(),
-    isFeatured: z.boolean(),
     createdAt: z.date(),
     updatedAt: z.date(),
 });
@@ -172,7 +152,6 @@ const ProductsListResponseSchema = z.object({
         minPrice: z.number().optional(),
         maxPrice: z.number().optional(),
         isActive: z.boolean().optional(),
-        isFeatured: z.boolean().optional(),
     }).optional(),
 });
 

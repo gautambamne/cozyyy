@@ -20,12 +20,12 @@ exports.Prisma = Prisma
 exports.$Enums = {}
 
 /**
- * Prisma Client JS version: 6.17.1
- * Query Engine version: 272a37d34178c2894197e17273bf937f25acdeac
+ * Prisma Client JS version: 6.18.0
+ * Query Engine version: 34b5a692b7bd79939a9a2c3ef97d816e749cda2f
  */
 Prisma.prismaVersion = {
-  client: "6.17.1",
-  engine: "272a37d34178c2894197e17273bf937f25acdeac"
+  client: "6.18.0",
+  engine: "34b5a692b7bd79939a9a2c3ef97d816e749cda2f"
 }
 
 Prisma.PrismaClientKnownRequestError = () => {
@@ -151,7 +151,6 @@ exports.Prisma.CategoryScalarFieldEnum = {
 exports.Prisma.ProductScalarFieldEnum = {
   id: 'id',
   name: 'name',
-  slug: 'slug',
   description: 'description',
   price: 'price',
   salePrice: 'salePrice',
@@ -159,7 +158,7 @@ exports.Prisma.ProductScalarFieldEnum = {
   images: 'images',
   categoryId: 'categoryId',
   isActive: 'isActive',
-  isFeatured: 'isFeatured',
+  jewelrySize: 'jewelrySize',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };
@@ -171,10 +170,25 @@ exports.Prisma.CartItemScalarFieldEnum = {
   quantity: 'quantity'
 };
 
+exports.Prisma.AddressScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  street: 'street',
+  city: 'city',
+  state: 'state',
+  postalCode: 'postalCode',
+  country: 'country',
+  phone: 'phone',
+  isDefault: 'isDefault',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.OrderScalarFieldEnum = {
   id: 'id',
   orderNumber: 'orderNumber',
   userId: 'userId',
+  addressId: 'addressId',
   total: 'total',
   status: 'status',
   paymentMethod: 'paymentMethod',
@@ -218,6 +232,14 @@ exports.Role = exports.$Enums.Role = {
   VENDOR: 'VENDOR'
 };
 
+exports.JewelrySize = exports.$Enums.JewelrySize = {
+  SMALL: 'SMALL',
+  MEDIUM: 'MEDIUM',
+  LARGE: 'LARGE',
+  EXTRA_LARGE: 'EXTRA_LARGE',
+  CUSTOM: 'CUSTOM'
+};
+
 exports.OrderStatus = exports.$Enums.OrderStatus = {
   PENDING: 'PENDING',
   CONFIRMED: 'CONFIRMED',
@@ -232,6 +254,7 @@ exports.Prisma.ModelName = {
   Category: 'Category',
   Product: 'Product',
   CartItem: 'CartItem',
+  Address: 'Address',
   Order: 'Order',
   OrderItem: 'OrderItem',
   WishlistItem: 'WishlistItem'
