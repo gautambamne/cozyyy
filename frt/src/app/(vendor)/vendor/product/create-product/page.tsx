@@ -41,7 +41,7 @@ import { Switch } from "@/components/ui/switch";
 import { ProductAction } from "@/api-actions/product-actions";
 import { useCategories } from "@/hooks/use-categories";
 
-// Form schema without images validation (files handled separately)
+// Form schema
 const ProductFormSchema = z.object({
   name: z.string().min(1, 'Product name is required').max(200, 'Product name too long').trim(),
   jewelrySize: z.enum(['SMALL', 'MEDIUM', 'LARGE', 'EXTRA_LARGE', 'CUSTOM']),
@@ -76,6 +76,12 @@ export default function ProductFormPage() {
   const queryClient = useQueryClient();
   const { data: categories, isLoading: categoriesLoading } = useCategories();
 
+  // State for images
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [previewUrls, setPreviewUrls] = useState<string[]>([]);
+  const [existingImages, setExistingImages] = useState<string[]>([]);
+  const [isUploadingNewImages, setIsUploadingNewImages] = useState(false);
+
   // Fetch product data if in edit mode
   const { data: productData, isLoading: productLoading } = useQuery<Product>({
     queryKey: ['product', productId],
@@ -85,11 +91,11 @@ export default function ProductFormPage() {
       return response.product as Product;
     },
     enabled: !!productId,
-    staleTime: Infinity, // Data will never go stale
-    gcTime: 30 * 60 * 1000, // Keep unused data in cache for 30 minutes
-    refetchOnWindowFocus: false, // Don't refetch when window regains focus
-    refetchOnReconnect: false, // Don't refetch on reconnection
-    refetchInterval: false, // Disable periodic refetching
+    staleTime: Infinity,
+    gcTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchInterval: false,
   });
 
   const form = useForm<ProductFormValues>({
@@ -106,10 +112,6 @@ export default function ProductFormPage() {
     },
   });
 
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [previewUrls, setPreviewUrls] = useState<string[]>([]);
-  const [existingImages, setExistingImages] = useState<string[]>([]);
-
   // Set form values when product data is loaded
   useEffect(() => {
     if (productData) {
@@ -125,46 +127,79 @@ export default function ProductFormPage() {
       });
       setExistingImages(productData.images);
       setPreviewUrls(productData.images);
+      setIsUploadingNewImages(false);
     }
   }, [productData, form]);
 
+  // Handle file selection
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
+    
+    if (files.length === 0) return;
+    
     if (files.length > 10) {
       toast.error("Maximum 10 images allowed");
       return;
     }
 
+    // Revoke old blob URLs if any
+    previewUrls.forEach(url => {
+      if (url.startsWith('blob:')) {
+        URL.revokeObjectURL(url);
+      }
+    });
+
     setSelectedFiles(files);
+    setIsUploadingNewImages(true);
     
     // Create preview URLs for new files
     const urls = files.map(file => URL.createObjectURL(file));
     setPreviewUrls(urls);
-    // Clear existing images when new files are selected
-    setExistingImages([]);
   };
 
+  // Remove image
   const removeImage = (index: number) => {
-    if (selectedFiles.length > 0) {
+    if (isUploadingNewImages) {
       // Removing from new files
       const newFiles = selectedFiles.filter((_, i) => i !== index);
       const newUrls = previewUrls.filter((_, i) => i !== index);
       
-      URL.revokeObjectURL(previewUrls[index]);
+      // Revoke the removed URL
+      if (previewUrls[index].startsWith('blob:')) {
+        URL.revokeObjectURL(previewUrls[index]);
+      }
       
       setSelectedFiles(newFiles);
       setPreviewUrls(newUrls);
+
+      // If all new images removed, go back to existing images
+      if (newFiles.length === 0) {
+        setIsUploadingNewImages(false);
+        setPreviewUrls(existingImages);
+      }
     } else {
-      // Removing from existing images
-      const newExisting = existingImages.filter((_, i) => i !== index);
-      setExistingImages(newExisting);
-      setPreviewUrls(newExisting);
+      // Cannot remove existing images - user must upload new set
+      toast.error("To change images, please upload a new set of images");
     }
   };
 
+  // Cancel new image upload and revert to existing
+  const cancelNewImages = () => {
+    // Revoke all blob URLs
+    previewUrls.forEach(url => {
+      if (url.startsWith('blob:')) {
+        URL.revokeObjectURL(url);
+      }
+    });
+
+    setSelectedFiles([]);
+    setIsUploadingNewImages(false);
+    setPreviewUrls(existingImages);
+  };
+
+  // Cleanup blob URLs on unmount
   useEffect(() => {
     return () => {
-      // Only revoke URLs that are blob URLs (not http URLs)
       previewUrls.forEach(url => {
         if (url.startsWith('blob:')) {
           URL.revokeObjectURL(url);
@@ -173,52 +208,64 @@ export default function ProductFormPage() {
     };
   }, [previewUrls]);
 
+  // Mutation for create/update
   const mutation = useMutation({
     mutationFn: async (data: ProductFormValues) => {
-      // Validate images
-      if (!isEditMode && selectedFiles.length === 0) {
-        throw new Error("At least one image is required");
-      }
-
       if (isEditMode) {
-        // For update - only send if there are new images
-        const hasNewImages = selectedFiles.length > 0;
-        
+        // Update mode - images are optional
         console.log('Updating product:', {
           id: productId,
-          data: data,
-          hasNewImages
+          data,
+          hasNewImages: isUploadingNewImages,
+          newImagesCount: selectedFiles.length
         });
 
-        return await ProductAction.UpdateProductAction(
-          productId!,
+        // Only pass files if user is uploading new images
+        if (isUploadingNewImages && selectedFiles.length > 0) {
+          return await ProductAction.UpdateProductAction(
+            productId!,
+            {
+              ...data,
+              salePrice: data.salePrice ?? undefined
+            },
+            selectedFiles
+          );
+        } else {
+          // No new images - update without files parameter
+          return await ProductAction.UpdateProductAction(
+            productId!,
+            {
+              ...data,
+              salePrice: data.salePrice ?? undefined
+            }
+          );
+        }
+      } else {
+        // Create mode - images are required
+        if (selectedFiles.length === 0) {
+          throw new Error("At least one image is required");
+        }
+
+        console.log('Creating product:', {
+          data,
+          imagesCount: selectedFiles.length
+        });
+
+        return await ProductAction.CreateProductAction(
           {
             ...data,
             salePrice: data.salePrice ?? undefined
           },
-          hasNewImages ? selectedFiles : undefined
+          selectedFiles
         );
       }
-
-      // For create - images are required
-      console.log('Creating new product:', {
-        data: data,
-        imageCount: selectedFiles.length
-      });
-
-      // The ProductAction will handle converting data to match CreateProductSchema
-      return await ProductAction.CreateProductAction(
-        {
-          ...data,
-          salePrice: data.salePrice ?? undefined
-        },
-        selectedFiles
-      );
     },
     onSuccess: () => {
       toast.success(isEditMode ? "Product updated successfully" : "Product created successfully");
       queryClient.invalidateQueries({ queryKey: ["products"] });
-      queryClient.invalidateQueries({ queryKey: ["product", productId] });
+      if (productId) {
+        queryClient.invalidateQueries({ queryKey: ["product", productId] });
+      }
       router.push("/vendor/product");
     },
     onError: (error: any) => {
@@ -228,48 +275,49 @@ export default function ProductFormPage() {
     },
   });
 
+  // Form submit handler
   const onSubmit = async (data: ProductFormValues) => {
-    try {
-      console.log('Form submitted:', {
-        data,
-        selectedFiles: selectedFiles.length,
-        existingImages: existingImages.length
-      });
-
-      // Validate that we have images for create mode
-      if (!isEditMode && selectedFiles.length === 0) {
-        toast.error('At least one image is required');
-        return;
-      }
-
-      mutation.mutate(data);
-    } catch (error) {
-      console.error('Submit Error:', error);
-      toast.error('Please check all required fields');
+    // Validate images for create mode
+    if (!isEditMode && selectedFiles.length === 0) {
+      toast.error('At least one image is required');
+      return;
     }
+
+    // For edit mode with new images, validate
+    if (isEditMode && isUploadingNewImages && selectedFiles.length === 0) {
+      toast.error('Please select images or cancel to keep existing images');
+      return;
+    }
+
+    mutation.mutate(data);
   };
+
+  if (productLoading) {
+    return (
+      <div className="container py-8">
+        <div className="flex justify-center items-center min-h-[400px]">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container py-8">
       <div className="mx-auto max-w-4xl">
-        {productLoading ? (
-          <div className="flex justify-center items-center min-h-[200px]">
-            <div className="animate-spin rounded-full h-8 w-8 border-4 border-primary border-t-transparent"></div>
-          </div>
-        ) : (
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-              <Package className="h-8 w-8" />
-              {isEditMode ? "Edit Product" : "Create New Product"}
-            </h1>
-            <p className="text-muted-foreground mt-2">
-              {isEditMode ? "Update your product information" : "Add a new product to your inventory"}
-            </p>
-          </div>
-        )}
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+            <Package className="h-8 w-8" />
+            {isEditMode ? "Edit Product" : "Create New Product"}
+          </h1>
+          <p className="text-muted-foreground mt-2">
+            {isEditMode ? "Update your product information" : "Add a new product to your inventory"}
+          </p>
+        </div>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            {/* Basic Information */}
             <Card>
               <CardHeader>
                 <CardTitle>Basic Information</CardTitle>
@@ -341,6 +389,7 @@ export default function ProductFormPage() {
               </CardContent>
             </Card>
 
+            {/* Pricing & Inventory */}
             <Card>
               <CardHeader>
                 <CardTitle>Pricing & Inventory</CardTitle>
@@ -440,6 +489,7 @@ export default function ProductFormPage() {
               </CardContent>
             </Card>
 
+            {/* Product Images */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -447,56 +497,86 @@ export default function ProductFormPage() {
                   Product Images
                 </CardTitle>
                 <CardDescription>
-                  Upload up to 10 images. First image will be the main display image.
-                  {isEditMode && " (Upload new images to replace existing ones)"}
+                  {isEditMode 
+                    ? "Upload new images to replace all existing ones, or keep current images unchanged"
+                    : "Upload up to 10 images. First image will be the main display image."
+                  }
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <FormControl>
-                  <Input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    onChange={handleFileSelect}
-                    className="cursor-pointer"
-                  />
-                </FormControl>
+                <div className="flex items-center gap-3">
+                  <FormControl>
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleFileSelect}
+                      className="cursor-pointer flex-1"
+                    />
+                  </FormControl>
+                  
+                  {isEditMode && isUploadingNewImages && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={cancelNewImages}
+                      size="sm"
+                    >
+                      Cancel & Keep Current
+                    </Button>
+                  )}
+                </div>
                 
                 {previewUrls.length > 0 && (
-                  <div className="grid grid-cols-5 gap-3">
-                    {previewUrls.map((url, index) => (
-                      <div key={index} className="relative aspect-square rounded-lg overflow-hidden border-2 border-muted group">
-                        <Image
-                          src={url}
-                          alt={`Preview ${index + 1}`}
-                          fill
-                          className="object-cover"
-                        />
-                        {index === 0 && (
-                          <div className="absolute top-1 left-1 bg-primary text-primary-foreground text-xs px-2 py-1 rounded">
-                            Main
-                          </div>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => removeImage(index)}
-                          className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </div>
-                    ))}
+                  <div>
+                    {isEditMode && !isUploadingNewImages && (
+                      <p className="text-sm text-muted-foreground mb-3">
+                        Current images (upload new files to replace)
+                      </p>
+                    )}
+                    {isEditMode && isUploadingNewImages && (
+                      <p className="text-sm text-amber-600 mb-3">
+                        ⚠ These new images will replace all existing images
+                      </p>
+                    )}
+                    <div className="grid grid-cols-5 gap-3">
+                      {previewUrls.map((url, index) => (
+                        <div key={index} className="relative aspect-square rounded-lg overflow-hidden border-2 border-muted group">
+                          <Image
+                            src={url}
+                            alt={`Preview ${index + 1}`}
+                            fill
+                            className="object-cover"
+                          />
+                          {index === 0 && (
+                            <div className="absolute top-1 left-1 bg-primary text-primary-foreground text-xs px-2 py-1 rounded">
+                              Main
+                            </div>
+                          )}
+                          {isUploadingNewImages && (
+                            <button
+                              type="button"
+                              onClick={() => removeImage(index)}
+                              className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
 
                 {!isEditMode && previewUrls.length === 0 && (
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-destructive">
                     * At least one image is required
                   </p>
                 )}
               </CardContent>
             </Card>
 
+            {/* Product Status */}
             <Card>
               <CardHeader>
                 <CardTitle>Product Status</CardTitle>
@@ -525,12 +605,14 @@ export default function ProductFormPage() {
               </CardContent>
             </Card>
 
+            {/* Action Buttons */}
             <div className="flex gap-3">
               <Button 
                 type="button"
                 variant="outline"
                 className="flex-1"
                 onClick={() => router.push("/vendor/product")}
+                disabled={mutation.isPending}
               >
                 Cancel
               </Button>

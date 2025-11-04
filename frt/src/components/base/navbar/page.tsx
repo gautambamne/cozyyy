@@ -1,19 +1,11 @@
 'use client'
 import Link from 'next/link'
-import { Menu, X, LayoutDashboard, LogOut, User } from 'lucide-react'
+import { Menu, X, LayoutDashboard } from 'lucide-react'
 import React from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { AnimatedThemeToggler } from '@/components/ui/theme-button'
 import { Button } from '@/components/ui/button'
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import ProfileDropdown from '@/components/kokonutui/profile-dropdown'
 import { useToast } from '@/hooks/use-toast'
 import useAuthStore from '@/store/auth-store'
 import { AuthAction } from '@/api-actions/auth-actions'
@@ -148,8 +140,9 @@ export const Navbar = () => {
                                 ) : (
                                     <>
                                         {/* Dashboard Button (Vendors Only) */}
+                                        {/* Vendor Dashboard Button and Profile Dropdown */}
                                         {isVendor && (
-                                            <Link href="/vendor">
+                                            <Link href="/vendor" className="hidden lg:block">
                                                 <Button variant="outline" size="sm">
                                                     <LayoutDashboard className="size-4 lg:mr-2" />
                                                     <span className="hidden lg:inline">Dashboard</span>
@@ -157,55 +150,21 @@ export const Navbar = () => {
                                             </Link>
                                         )}
 
-                                        {/* User Avatar Dropdown */}
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button 
-                                                    variant="ghost" 
-                                                    size="icon" 
-                                                    className="rounded-full"
-                                                    disabled={logoutMutation.isPending}>
-                                                    <Avatar className="h-8 w-8">
-                                                        <AvatarFallback className="bg-primary text-primary-foreground text-sm font-semibold">
-                                                            {getUserInitials()}
-                                                        </AvatarFallback>
-                                                    </Avatar>
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end" className="w-56">
-                                                <DropdownMenuLabel>
-                                                    <div className="flex flex-col space-y-1">
-                                                        <p className="text-sm font-medium leading-none">{getUserName()}</p>
-                                                        <p className="text-xs leading-none text-muted-foreground">
-                                                            {user?.email || ''}
-                                                        </p>
-                                                    </div>
-                                                </DropdownMenuLabel>
-                                                <DropdownMenuSeparator />
-                                                <DropdownMenuItem asChild>
-                                                    <Link href="/profile" className="cursor-pointer">
-                                                        <User className="mr-2 h-4 w-4" />
-                                                        <span>Profile</span>
-                                                    </Link>
-                                                </DropdownMenuItem>
-                                                {isVendor && (
-                                                    <DropdownMenuItem asChild className="lg:hidden">
-                                                        <Link href="/vendor" className="cursor-pointer">
-                                                            <LayoutDashboard className="mr-2 h-4 w-4" />
-                                                            <span>Dashboard</span>
-                                                        </Link>
-                                                    </DropdownMenuItem>
-                                                )}
-                                                <DropdownMenuSeparator />
-                                                <DropdownMenuItem 
-                                                    onClick={handleLogout} 
-                                                    disabled={logoutMutation.isPending}
-                                                    className="cursor-pointer text-red-600 focus:text-red-600">
-                                                    <LogOut className="mr-2 h-4 w-4" />
-                                                    <span>{logoutMutation.isPending ? 'Logging out...' : 'Logout'}</span>
-                                                </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
+                                        {/* Profile Dropdown */}
+                                        <ProfileDropdown 
+                                            data={{
+                                                name: getUserName(),
+                                                email: user?.email || '',
+                                            }}
+                                            onSignOut={handleLogout}
+                                            isLoading={logoutMutation.isPending}
+                                            customMenuItems={isVendor ? [{
+                                                label: "Dashboard",
+                                                href: "/vendor",
+                                                icon: <LayoutDashboard className="w-4 h-4" />,
+                                                className: "lg:hidden"
+                                            }] : []}
+                                        />
                                     </>
                                 )}
                             </div>
