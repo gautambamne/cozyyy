@@ -9,29 +9,7 @@ import {
 } from "../schema/product.schema";
 import asyncHandler from "../utils/asynchandler";
 import { zodErrorFormatter } from "../utils/error-formater";
-import cloudinary from "../utils/cloudinary";
-import { Readable } from "stream";
-
-// Helper function to upload buffer to Cloudinary
-const uploadToCloudinary = async (buffer: Buffer, folder: string = 'products'): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const uploadStream = cloudinary.uploader.upload_stream(
-      {
-        folder,
-        resource_type: 'auto',
-      },
-      (error, result) => {
-        if (error) return reject(error);
-        resolve(result?.secure_url || '');
-      }
-    );
-
-    const bufferStream = new Readable();
-    bufferStream.push(buffer);
-    bufferStream.push(null);
-    bufferStream.pipe(uploadStream);
-  });
-};
+import { uploadToCloudinary } from "../utils/cloudinary";
 
 // Create Product Controller
 export const CreateProductController = asyncHandler(async (req, res) => {
