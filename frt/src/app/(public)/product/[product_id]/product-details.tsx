@@ -1,0 +1,241 @@
+"use client"
+
+import { useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Heart, Package, Check } from "lucide-react"
+import { useCategory } from "@/hooks/use-categories"
+import { Skeleton } from "@/components/ui/skeleton"
+
+const JEWELRY_SIZES = [
+  { value: 'SMALL', label: 'S', description: 'Small - Suitable for petite wrists/necks' },
+  { value: 'MEDIUM', label: 'M', description: 'Medium - Standard size, fits most' },
+  { value: 'LARGE', label: 'L', description: 'Large - Suitable for larger wrists/necks' },
+  { value: 'EXTRA_LARGE', label: 'XL', description: 'Extra Large - Designed for extra comfort' },
+] as const;
+
+interface ProductDetailsProps {
+  product: IProduct
+  isWishlisted: boolean
+  onWishlist: () => void
+}
+
+interface SizeSelectorProps {
+  availableSize: string;
+  onSizeSelect: (size: string) => void;
+  selectedSize: string;
+}
+
+const SizeSelector = ({ availableSize, onSizeSelect, selectedSize }: SizeSelectorProps) => {
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h3 className="text-sm font-medium">Select Size</h3>
+        <button 
+          type="button"
+          className="text-xs text-primary hover:underline"
+          onClick={() => {
+            const sizeInfo = JEWELRY_SIZES.find(s => s.value === selectedSize);
+            if (sizeInfo) {
+              alert(`${sizeInfo.label}: ${sizeInfo.description}`);
+            }
+          }}
+        >
+          Size Guide
+        </button>
+      </div>
+      <div className="flex items-center gap-4 px-1 overflow-x-auto py-2">
+        {JEWELRY_SIZES.map((size) => {
+          const isAvailable = size.value === availableSize;
+          return (
+            <button
+              key={size.value}
+              onClick={() => isAvailable && onSizeSelect(size.value)}
+              disabled={!isAvailable}
+              className={`
+                flex-none flex items-center justify-center w-14 h-14 border rounded-full text-base font-medium transition-all
+                ${selectedSize === size.value && isAvailable
+                  ? 'border-primary bg-primary/5 text-primary ring-2 ring-primary ring-offset-2'
+                  : isAvailable
+                    ? 'border-border hover:border-primary/50 hover:bg-secondary/50'
+                    : 'border-border/50 bg-muted/50 text-muted-foreground cursor-not-allowed'
+                }
+              `}
+              title={size.description}
+            >
+              {size.label}
+              {!isAvailable && (
+                <span className="sr-only">(Out of Stock)</span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+      <div className="text-xs text-muted-foreground">
+        {selectedSize && (
+          <p>{JEWELRY_SIZES.find(s => s.value === selectedSize)?.description}</p>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const CategoryName = ({ categoryId }: { categoryId: string }) => {
+  const { data: category, isLoading } = useCategory(categoryId);
+
+  if (isLoading) {
+    return <Skeleton className="h-4 w-24" />;
+  }
+
+  return <p>Category: {category?.category?.name || 'Unknown'}</p>;
+}
+
+const ExpandableSection = ({ title, children }: { title: string; children: React.ReactNode }) => {
+  const [isExpanded, setIsExpanded] = useState(false)
+
+  return (
+    <div className="border-b border-border last:border-0">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="flex justify-between items-center w-full py-4 text-sm font-medium"
+      >
+        {title}
+        <span className="text-xl">{isExpanded ? '−' : '+'}</span>
+      </button>
+      {isExpanded && <div className="pb-4">{children}</div>}
+    </div>
+  )
+}
+
+export default function ProductDetails({ product, isWishlisted, onWishlist }: ProductDetailsProps) {
+  const [selectedSize, setSelectedSize] = useState<string>(product.jewelrySize);
+  const hasDiscount = typeof product.salePrice === "number" && product.salePrice < product.price;
+  const discountPercentage = hasDiscount
+    ? Math.round(((product.price - product.salePrice!) / product.price) * 100)
+    : 0;
+  const displayPrice = product.salePrice || product.price;
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h1 className="text-3xl font-bold mb-2">{product.name}</h1>
+        <p className="text-muted-foreground">{product.description}</p>
+      </div>
+
+      {/* Price Section */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-3">
+          <span className="text-2xl font-bold">₹{displayPrice.toLocaleString('en-IN')}</span>
+          {hasDiscount && (
+            <>
+              <span className="text-sm text-muted-foreground line-through">
+                MRP ₹{product.price.toLocaleString('en-IN')}
+              </span>
+              <span className="bg-primary text-primary-foreground px-2 py-1 text-sm font-bold rounded">
+                SAVE {discountPercentage}%
+              </span>
+            </>
+          )}
+        </div>
+        <p className="text-sm text-muted-foreground">Inclusive of all taxes</p>
+      </div>
+
+      {/* Size Selector */}
+      <SizeSelector
+        availableSize={product.jewelrySize}
+        selectedSize={selectedSize}
+        onSizeSelect={setSelectedSize}
+      />
+
+      {/* Stock Status */}
+      <div className="flex items-center gap-2 text-sm">
+        {product.isActive ? (
+          <>
+            <Check className="text-green-600" size={18} />
+            <span>In stock - {product.stock} units available</span>
+          </>
+        ) : (
+          <span className="text-destructive">Currently unavailable</span>
+        )}
+      </div>
+
+      {/* Action Buttons */}
+      <div className="space-y-3">
+        <div className="flex gap-3">
+          <Button 
+            className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90 h-12 gap-2"
+            disabled={!product.isActive || product.stock === 0}
+          >
+            <Package size={18} />
+            ADD TO BAG
+          </Button>
+          <button
+            onClick={onWishlist}
+            className="w-12 h-12 border border-border rounded hover:bg-secondary transition-colors flex items-center justify-center"
+          >
+            <Heart 
+              size={20} 
+              className={isWishlisted ? "fill-red-500 text-red-500" : "text-foreground"} 
+            />
+          </button>
+        </div>
+      </div>
+
+      {/* Expandable Sections */}
+      <div className="space-y-2 border-t border-border pt-4">
+        <ExpandableSection title="Description">
+          <p className="text-sm text-muted-foreground">{product.description}</p>
+        </ExpandableSection>
+        <ExpandableSection title="Product Details">
+          <div className="text-sm text-muted-foreground space-y-3">
+            <div>
+              <p className="font-medium text-foreground mb-1">Size Details</p>
+              <p>Size: {JEWELRY_SIZES.find(s => s.value === selectedSize)?.description}</p>
+            </div>
+            <div>
+              <p className="font-medium text-foreground mb-1">Category</p>
+              <CategoryName categoryId={product.categoryId} />
+            </div>
+            <div>
+              <p className="font-medium text-foreground mb-1">Product Information</p>
+              <p>SKU: {product.id}</p>
+            </div>
+          </div>
+        </ExpandableSection>
+      </div>
+
+      {/* Benefits */}
+      <div className="grid grid-cols-3 gap-4 bg-secondary p-6 rounded-lg">
+        <div className="text-center">
+          <div className="text-2xl mb-2">🛡️</div>
+          <p className="text-xs font-medium">Premium Quality</p>
+        </div>
+        <div className="text-center">
+          <div className="text-2xl mb-2">💚</div>
+          <p className="text-xs font-medium">Skin Safe Jewellery</p>
+        </div>
+        <div className="text-center">
+          <div className="text-2xl mb-2">✨</div>
+          <p className="text-xs font-medium">100% Original</p>
+        </div>
+      </div>
+
+      {/* Delivery Info */}
+      <div className="space-y-4">
+        <div className="flex justify-between items-center">
+          <h3 className="font-semibold">Returns & Warranty</h3>
+        </div>
+        <div className="grid grid-cols-2 gap-4 text-center text-sm">
+          <div className="border border-border rounded p-3">
+            <div className="font-medium mb-1">30 Days</div>
+            <div className="text-muted-foreground">Easy Returns</div>
+          </div>
+          <div className="border border-border rounded p-3">
+            <div className="font-medium mb-1">1 Year</div>
+            <div className="text-muted-foreground">Warranty</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}

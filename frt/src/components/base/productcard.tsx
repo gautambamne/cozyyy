@@ -1,104 +1,67 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ProductAction } from '@/api-actions/product-actions'
-import { 
-  IGetProductsQuerySchema, 
-  IGetProductSchema,
-  ICreateProductSchema,
-  IUpdateProductSchema 
-} from '@/schema/product-schema'
+'use client';
 
-// Query Keys
-export const productKeys = {
-  all: ['products'] as const,
-  lists: () => [...productKeys.all, 'list'] as const,
-  list: (params?: Partial<IGetProductsQuerySchema>) => [...productKeys.lists(), params] as const,
-  details: () => [...productKeys.all, 'detail'] as const,
-  detail: (id: string) => [...productKeys.details(), id] as const,
-  category: (categoryId: string, params?: Omit<IGetProductsQuerySchema, 'categoryId'>) => 
-    [...productKeys.all, 'category', categoryId, params] as const,
+import { useQuery } from '@tanstack/react-query';
+import { ProductAction } from '@/api-actions/product-actions';
+import { ProductCard } from './product-card';
+import { IGetProductsQuerySchema } from '@/schema/product-schema';
+
+interface ProductGridProps {
+  filters?: Partial<IGetProductsQuerySchema>;
+  onAddToCart?: (productId: string) => void;
 }
 
-// Get Products Hook
-export const useGetProducts = (params?: Partial<IGetProductsQuerySchema>) => {
-  return useQuery({
-    queryKey: productKeys.list(params),
-    queryFn: () => ProductAction.GetProductsAction(params),
-    staleTime: 1000 * 60 * 5, // 5 minutes
-  })
-}
+export const ProductGrid = ({ filters, onAddToCart }: ProductGridProps) => {
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['products', filters],
+    queryFn: () => ProductAction.GetProductsAction(filters),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
 
-// Get Product By ID Hook
-export const useGetProductById = (id: string, enabled: boolean = true) => {
-  return useQuery({
-    queryKey: productKeys.detail(id),
-    queryFn: () => ProductAction.GetProductByIdAction({ id }),
-    enabled: !!id && enabled,
-    staleTime: 1000 * 60 * 5, // 5 minutes
-  })
-}
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div key={i} className="bg-gray-200 rounded-lg animate-pulse">
+            <div className="aspect-square bg-gray-300" />
+            <div className="p-4 space-y-3">
+              <div className="h-4 bg-gray-300 rounded w-3/4" />
+              <div className="h-4 bg-gray-300 rounded w-1/2" />
+              <div className="h-10 bg-gray-300 rounded" />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
 
-// Get Products By Category Hook
-export const useGetProductsByCategory = (
-  categoryId: string, 
-  params?: Omit<IGetProductsQuerySchema, 'categoryId'>,
-  enabled: boolean = true
-) => {
-  return useQuery({
-    queryKey: productKeys.category(categoryId, params),
-    queryFn: () => ProductAction.GetProductsByCategoryAction(categoryId, params),
-    enabled: !!categoryId && enabled,
-    staleTime: 1000 * 60 * 5, // 5 minutes
-  })
-}
+  if (error) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-center">
+          <p className="text-red-600 font-medium">Error loading products</p>
+          <p className="text-gray-500 text-sm mt-2">{(error as Error).message}</p>
+        </div>
+      </div>
+    );
+  }
 
-// Create Product Hook
-export const useCreateProduct = () => {
-  const queryClient = useQueryClient()
+  if (!data?.products?.length) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <p className="text-gray-500">No products found</p>
+      </div>
+    );
+  }
 
-  return useMutation({
-    mutationFn: ({ data, files }: { 
-      data: Omit<ICreateProductSchema, 'images'>, 
-      files: File[] 
-    }) => ProductAction.CreateProductAction(data, files),
-    onSuccess: () => {
-      // Invalidate all product lists
-      queryClient.invalidateQueries({ queryKey: productKeys.lists() })
-    },
-  })
-}
-
-// Update Product Hook
-export const useUpdateProduct = () => {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: ({ 
-      id, 
-      data, 
-      files 
-    }: { 
-      id: string
-      data: Partial<Omit<IUpdateProductSchema, 'images'>>
-      files?: File[] 
-    }) => ProductAction.UpdateProductAction(id, data, files),
-    onSuccess: (data, variables) => {
-      // Invalidate the specific product detail
-      queryClient.invalidateQueries({ queryKey: productKeys.detail(variables.id) })
-      // Invalidate all product lists
-      queryClient.invalidateQueries({ queryKey: productKeys.lists() })
-    },
-  })
-}
-
-// Delete Product Hook
-export const useDeleteProduct = () => {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: (data: IGetProductSchema) => ProductAction.DeleteProductAction(data),
-    onSuccess: () => {
-      // Invalidate all product lists
-      queryClient.invalidateQueries({ queryKey: productKeys.lists() })
-    },
-  })
-}
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      {data.products.map((product) => (
+        <ProductCard
+          key={product.id}
+          product={product}
+          onAddToCart={onAddToCart}
+        />
+      ))}
+    </div>
+  );
+};

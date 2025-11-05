@@ -142,7 +142,7 @@ export const Navbar = () => {
                                         {/* Dashboard Button (Vendors Only) */}
                                         {/* Vendor Dashboard Button and Profile Dropdown */}
                                         {isVendor && (
-                                            <Link href="/vendor" className="hidden lg:block">
+                                            <Link href="/vendor/category" className="hidden lg:block">
                                                 <Button variant="outline" size="sm">
                                                     <LayoutDashboard className="size-4 lg:mr-2" />
                                                     <span className="hidden lg:inline">Dashboard</span>
@@ -160,7 +160,7 @@ export const Navbar = () => {
                                             isLoading={logoutMutation.isPending}
                                             customMenuItems={isVendor ? [{
                                                 label: "Dashboard",
-                                                href: "/vendor",
+                                                href: "/vendor/category",
                                                 icon: <LayoutDashboard className="w-4 h-4" />,
                                                 className: "lg:hidden"
                                             }] : []}

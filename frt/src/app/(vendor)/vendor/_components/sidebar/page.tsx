@@ -46,7 +46,9 @@ export function Sidebar() {
     <div className="flex h-full w-full flex-col">
       {/* Header */}
       <div className="flex h-14 items-center border-b px-4">
-        <h2 className="text-lg font-semibold">Dashboard</h2>
+        <Link href="/">
+          <h2 className="text-lg font-semibold hover:text-primary transition-colors">Cozy Girlyy</h2>
+        </Link>
       </div>
 
       {/* Navigation */}

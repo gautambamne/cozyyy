@@ -1,72 +1,67 @@
-'use client'
-import { ProductCard } from "@/components/base/product-card";
-import { useGetProducts } from "@/components/base/productcard";
-import { Loader2 } from "lucide-react";
+"use client"
 
-export default function ProductsPage() {
-  const { data, isLoading, isError, error } = useGetProducts({
-    page: 1,
-    limit: 12,
+import { ProductCard } from "@/components/base/product-card"
+import { useProducts } from "@/hooks/use-products"
+import { Loader2 } from "lucide-react"
+
+export default function Home() {
+  const { data, isLoading, error } = useProducts({
     isActive: true,
+    limit: 20,
     sortBy: 'createdAt',
-    sortOrder: 'desc',
-  });
+    sortOrder: 'desc'
+  })
+
+  const handleAddToCart = (productId: string) => {
+    console.log("Added to cart:", productId)
+    // Add your cart logic here
+  }
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+      <main className="min-h-screen bg-background pt-24 px-8 pb-8">
+        <div className="max-w-6xl mx-auto flex items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+        </div>
+      </main>
+    )
   }
 
-  if (isError) {
+  if (error) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-destructive mb-2">
-            Error Loading Products
-          </h2>
-          <p className="text-muted-foreground">
-            {error instanceof Error ? error.message : 'Something went wrong'}
-          </p>
+      <main className="min-h-screen bg-background pt-24 px-8 pb-8">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-destructive mb-2">Error Loading Products</h2>
+            <p className="text-muted-foreground">
+              {error instanceof Error ? error.message : 'Something went wrong'}
+            </p>
+          </div>
         </div>
-      </div>
-    );
-  }
-
-  if (!data?.products || data.products.length === 0) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">No Products Found</h2>
-          <p className="text-muted-foreground">
-            Check back later for new products
-          </p>
-        </div>
-      </div>
-    );
+      </main>
+    )
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Our Products</h1>
-        <p className="text-muted-foreground">
-          Showing {data.products.length} of {data.pagination.total} products
-        </p>
-      </div>
+    <main className="min-h-screen bg-background pt-24 px-8 pb-8">
+      <div className="max-w-6xl mx-auto">
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-3xl font-bold">Products</h1>
+          <p className="text-muted-foreground">
+            Showing {data?.products.length} of {data?.pagination.total} products
+          </p>
+        </div>
 
-      {/* Key fix: Use gap-6 and padding */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {data.products.map((product) => (
-          <ProductCard key={product.id} product={product} />
-        ))}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {data?.products.map((product) => (
+            <ProductCard 
+              key={product.id} 
+              product={product}
+              onAddToCart={handleAddToCart}
+            />
+          ))}
+        </div>
       </div>
-
-      <div className="mt-8 text-center text-sm text-muted-foreground">
-        Page {data.pagination.page} of {data.pagination.totalPages}
-      </div>
-    </div>
-  );
+    </main>
+  )
 }
