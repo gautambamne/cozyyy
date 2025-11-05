@@ -4,7 +4,10 @@ import { Heart, ShoppingCart } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Image from "next/image"
 import Link from "next/link"
-import { useState } from "react"
+import { useQueryClient, useMutation, useQuery } from "@tanstack/react-query"
+import { WishlistAction } from "@/api-actions/wishlist-actions"
+import { useToast } from "@/hooks/use-toast"
+import { cn } from "@/lib/utils"
 
 interface ProductCardProps {
   product: IProduct;
@@ -12,7 +15,83 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product, onAddToCart }: ProductCardProps) {
-  const [isWishlisted, setIsWishlisted] = useState(false)
+  const { toast } = useToast()
+  const queryClient = useQueryClient()
+
+  // Query to check if product is in wishlist
+  const { data: wishlistData } = useQuery({
+    queryKey: ['wishlist'],
+    queryFn: async () => {
+      return await WishlistAction.GetWishlistAction({
+        sortOrder: 'desc',
+        limit: 50
+      })
+    },
+    select: (data: IGetWishlistResponse) => {
+      const item = data?.items?.find(item => item.product.id === product.id)
+      return { isWishlisted: !!item, item }
+    },
+    // Don't refetch on window focus
+    refetchOnWindowFocus: false
+  })
+
+  // Mutation for toggling wishlist status
+  const toggleWishlistMutation = useMutation({
+    mutationFn: () => {
+      if (wishlistData?.isWishlisted) {
+        return WishlistAction.RemoveFromWishlistAction({ productId: product.id })
+      } else {
+        return WishlistAction.AddToWishlistAction({ productId: product.id })
+      }
+    },
+    onMutate: async () => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['wishlist'] })
+      
+      // Snapshot the previous value
+      const previousWishlist = queryClient.getQueryData(['wishlist'])
+      
+      // Optimistically update the wishlist
+      queryClient.setQueryData(['wishlist'], (old: IGetWishlistResponse | undefined) => {
+        if (!old) return { items: [], pagination: { total: 0 } }
+        
+        if (wishlistData?.isWishlisted) {
+          // Remove from wishlist
+          return {
+            ...old,
+            items: old.items.filter(item => item.product.id !== product.id)
+          }
+        } else {
+          // Add to wishlist
+          return {
+            ...old,
+            items: [...old.items, {
+              id: 'temp-id',
+              userId: 'temp-user',
+              productId: product.id,
+              addedAt: new Date().toISOString(),
+              product: product as IProductWishlist
+            }]
+          }
+        }
+      })
+      
+      return { previousWishlist }
+    },
+    onError: (error, variables, context) => {
+      // Revert the optimistic update on error
+      if (context?.previousWishlist) {
+        queryClient.setQueryData(['wishlist'], context.previousWishlist)
+      }
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to update wishlist"
+      })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['wishlist'] })
+    }
+  })
 
   const hasDiscount = typeof product.salePrice === "number" && product.salePrice < product.price;
   const discountPercentage = hasDiscount
@@ -96,11 +175,18 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
           size="sm" 
           onClick={(e) => {
             e.preventDefault();
-            setIsWishlisted(!isWishlisted);
+            toggleWishlistMutation.mutate();
           }} 
+          disabled={toggleWishlistMutation.isPending}
           className="px-3"
         >
-          <Heart className={`w-4 h-4 ${isWishlisted ? "fill-destructive text-destructive" : ""}`} />
+          <Heart 
+            className={cn(
+              "w-4 h-4 transition-colors",
+              wishlistData?.isWishlisted && "fill-destructive text-destructive",
+              toggleWishlistMutation.isPending && "fill-destructive text-destructive"
+            )} 
+          />
         </Button>
       </div>
     </div>

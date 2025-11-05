@@ -1,8 +1,9 @@
 'use client'
 import Link from 'next/link'
-import { Menu, X, LayoutDashboard } from 'lucide-react'
+import { Menu, X, LayoutDashboard, Heart, ShoppingBag } from 'lucide-react'
 import React from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { WishlistAction } from '@/api-actions/wishlist-actions'
 import { AnimatedThemeToggler } from '@/components/ui/theme-button'
 import { Button } from '@/components/ui/button'
 import ProfileDropdown from '@/components/kokonutui/profile-dropdown'
@@ -23,6 +24,23 @@ export const Navbar = () => {
     const queryClient = useQueryClient()
     const { toast } = useToast()
     const isVendor = user?.roles?.includes('VENDOR')
+
+    // Get wishlist data for the badge
+    const { data: wishlistData } = useQuery({
+        queryKey: ['wishlist'],
+        queryFn: async () => {
+            return await WishlistAction.GetWishlistAction({
+                sortOrder: 'desc',
+                limit: 50
+            })
+        },
+        enabled: isAuthenticated, // Only fetch when user is authenticated
+        initialData: {
+            items: [],
+            pagination: { page: 1, limit: 50, total: 0, totalPages: 0 },
+            message: 'No items in wishlist'
+        }
+    })
     
     const logoutMutation = useMutation({
         mutationFn: async () => {
@@ -126,9 +144,6 @@ export const Navbar = () => {
                                 </ul>
                             </div>
 
-                            {/* Theme Toggle */}
-                            <AnimatedThemeToggler />
-
                             {/* Auth Actions */}
                             <div className="flex w-full items-center gap-3 sm:w-fit">
                                 {!isAuthenticated ? (
@@ -140,7 +155,6 @@ export const Navbar = () => {
                                 ) : (
                                     <>
                                         {/* Dashboard Button (Vendors Only) */}
-                                        {/* Vendor Dashboard Button and Profile Dropdown */}
                                         {isVendor && (
                                             <Link href="/vendor/category" className="hidden lg:block">
                                                 <Button variant="outline" size="sm">
@@ -149,6 +163,32 @@ export const Navbar = () => {
                                                 </Button>
                                             </Link>
                                         )}
+
+                                        {/* Wishlist Button */}
+                                        <Link href="/wishlist">
+                                            <Button variant="ghost" size="icon" className="relative">
+                                                <Heart className="size-5" />
+                                                <span className="sr-only">Wishlist</span>
+                                                {/* Wishlist count badge */}
+                                                {wishlistData?.items?.length > 0 && (
+                                                    <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground">
+                                                        {wishlistData.items.length}
+                                                    </span>
+                                                )}
+                                            </Button>
+                                        </Link>
+
+                                        {/* Cart Button */}
+                                        <Link href="/cart">
+                                            <Button variant="ghost" size="icon" className="relative">
+                                                <ShoppingBag className="size-5" />
+                                                <span className="sr-only">Cart</span>
+                                                {/* Cart count badge - if needed */}
+                                                <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground">
+                                                    0
+                                                </span>
+                                            </Button>
+                                        </Link>
 
                                         {/* Profile Dropdown */}
                                         <ProfileDropdown 

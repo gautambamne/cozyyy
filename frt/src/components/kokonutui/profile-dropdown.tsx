@@ -2,9 +2,10 @@
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
-import { Settings, CreditCard, FileText, LogOut, User } from "lucide-react";
+import { Settings, LogOut, User } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { AnimatedThemeToggler } from "@/components/ui/theme-button";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -103,13 +104,16 @@ export default function ProfileDropdown({
                     >
                         {/* User Info */}
                         <div className="mb-2 px-2 py-1.5">
-                            <div className="flex flex-col space-y-1">
-                                <p className="text-sm font-medium leading-none">
-                                    {data.name}
-                                </p>
-                                <p className="text-xs leading-none text-muted-foreground">
-                                    {data.email}
-                                </p>
+                            <div className="flex items-center justify-between">
+                                <div className="flex flex-col space-y-1">
+                                    <p className="text-sm font-medium leading-none">
+                                        {data.name}
+                                    </p>
+                                    <p className="text-xs leading-none text-muted-foreground">
+                                        {data.email}
+                                    </p>
+                                </div>
+                                <AnimatedThemeToggler />
                             </div>
                         </div>
 
