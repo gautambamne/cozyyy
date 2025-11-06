@@ -1,7 +1,7 @@
 
 import { Router } from 'express';
 import { getAllSessionController, deleteSessionById, deleteAllSessionExceptCurrent } from '../controllers/session.controller';
-import { AuthMiddleware } from '../middleware/aurth.middlewate';
+import { AuthMiddleware } from '../middleware/auth.middlewate';
 
 const sessionRouter = Router();
 

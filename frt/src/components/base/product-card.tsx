@@ -8,6 +8,8 @@ import { useQueryClient, useMutation, useQuery } from "@tanstack/react-query"
 import { WishlistAction } from "@/api-actions/wishlist-actions"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
+import useAuthStore from "@/store/auth-store"
+import { useEffect } from "react"
 
 interface ProductCardProps {
   product: IProduct;
@@ -17,6 +19,14 @@ interface ProductCardProps {
 export function ProductCard({ product, onAddToCart }: ProductCardProps) {
   const { toast } = useToast()
   const queryClient = useQueryClient()
+  const isAuthenticated = useAuthStore(state => state.isAuthenticated)
+
+  // Effect to clear wishlist data on logout
+  useEffect(() => {
+    if (!isAuthenticated) {
+      queryClient.setQueryData(['wishlist'], { items: [], pagination: { total: 0 } })
+    }
+  }, [isAuthenticated, queryClient])
 
   // Query to check if product is in wishlist
   const { data: wishlistData } = useQuery({
@@ -31,13 +41,17 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
       const item = data?.items?.find(item => item.product.id === product.id)
       return { isWishlisted: !!item, item }
     },
-    // Don't refetch on window focus
-    refetchOnWindowFocus: false
+    refetchOnWindowFocus: false,
+    enabled: isAuthenticated,
+    initialData: { items: [], pagination: { page: 1, limit: 50, total: 0, totalPages: 0 }, message: '' }
   })
 
   // Mutation for toggling wishlist status
   const toggleWishlistMutation = useMutation({
     mutationFn: () => {
+      if (!isAuthenticated) {
+        throw new Error("Please login to add items to wishlist")
+      }
       if (wishlistData?.isWishlisted) {
         return WishlistAction.RemoveFromWishlistAction({ productId: product.id })
       } else {
@@ -45,24 +59,27 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
       }
     },
     onMutate: async () => {
-      // Cancel any outgoing refetches
+      // Cancel any outgoing refetches to prevent them from overwriting our optimistic update
       await queryClient.cancelQueries({ queryKey: ['wishlist'] })
       
       // Snapshot the previous value
       const previousWishlist = queryClient.getQueryData(['wishlist'])
       
-      // Optimistically update the wishlist
+      // Store whether we're adding or removing
+      const isAdding = !wishlistData?.isWishlisted
+      
+      // Optimistically update the wishlist immediately
       queryClient.setQueryData(['wishlist'], (old: IGetWishlistResponse | undefined) => {
-        if (!old) return { items: [], pagination: { total: 0 } }
+        if (!old) return { items: [], pagination: { total: 0 }, message: '' }
         
-        if (wishlistData?.isWishlisted) {
-          // Remove from wishlist
+        if (!isAdding) {
+          // Remove from wishlist - heart turns gray immediately
           return {
             ...old,
             items: old.items.filter(item => item.product.id !== product.id)
           }
         } else {
-          // Add to wishlist
+          // Add to wishlist - heart turns red immediately
           return {
             ...old,
             items: [...old.items, {
@@ -76,10 +93,10 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
         }
       })
       
-      return { previousWishlist }
+      return { previousWishlist, isAdding }
     },
     onError: (error, variables, context) => {
-      // Revert the optimistic update on error
+      // Revert to previous state only on error
       if (context?.previousWishlist) {
         queryClient.setQueryData(['wishlist'], context.previousWishlist)
       }
@@ -89,6 +106,7 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
       })
     },
     onSuccess: () => {
+      // On success, optimistic update is already correct, just invalidate to sync
       queryClient.invalidateQueries({ queryKey: ['wishlist'] })
     }
   })
@@ -177,14 +195,12 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
             e.preventDefault();
             toggleWishlistMutation.mutate();
           }} 
-          disabled={toggleWishlistMutation.isPending}
-          className="px-3"
+          className="px-3 relative"
         >
           <Heart 
             className={cn(
-              "w-4 h-4 transition-colors",
-              wishlistData?.isWishlisted && "fill-destructive text-destructive",
-              toggleWishlistMutation.isPending && "fill-destructive text-destructive"
+              "w-4 h-4 transition-colors duration-200",
+              wishlistData?.isWishlisted && "fill-destructive text-destructive"
             )} 
           />
         </Button>

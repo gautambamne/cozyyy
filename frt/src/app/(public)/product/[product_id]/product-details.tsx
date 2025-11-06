@@ -14,9 +14,7 @@ const JEWELRY_SIZES = [
 ] as const;
 
 interface ProductDetailsProps {
-  product: IProduct
-  isWishlisted: boolean
-  onWishlist: () => void
+  product: IProduct;
 }
 
 interface SizeSelectorProps {
@@ -106,8 +104,89 @@ const ExpandableSection = ({ title, children }: { title: string; children: React
   )
 }
 
-export default function ProductDetails({ product, isWishlisted, onWishlist }: ProductDetailsProps) {
+import { useQueryClient, useMutation, useQuery } from "@tanstack/react-query"
+import { WishlistAction } from "@/api-actions/wishlist-actions"
+import useAuthStore from "@/store/auth-store"
+import { useToast } from "@/hooks/use-toast"
+
+export default function ProductDetails({ product }: ProductDetailsProps) {
+  const { toast } = useToast()
+  const queryClient = useQueryClient()
+  const isAuthenticated = useAuthStore(state => state.isAuthenticated)
   const [selectedSize, setSelectedSize] = useState<string>(product.jewelrySize);
+  
+  // Query to check if product is in wishlist
+  const { data: wishlistData } = useQuery({
+    queryKey: ['wishlist'],
+    queryFn: async () => {
+      return await WishlistAction.GetWishlistAction({
+        limit: 50
+      })
+    },
+    select: (data: IGetWishlistResponse) => {
+      const item = data?.items?.find(item => item.product.id === product.id)
+      return { isWishlisted: !!item, item }
+    },
+    refetchOnWindowFocus: false,
+    enabled: isAuthenticated,
+    initialData: { items: [], pagination: { total: 0 }, message: '' }
+  })
+
+  // Mutation for toggling wishlist status
+  const toggleWishlistMutation = useMutation({
+    mutationFn: () => {
+      if (!isAuthenticated) {
+        throw new Error("Please login to add items to wishlist")
+      }
+      if (wishlistData?.isWishlisted) {
+        return WishlistAction.RemoveFromWishlistAction({ productId: product.id })
+      } else {
+        return WishlistAction.AddToWishlistAction({ productId: product.id })
+      }
+    },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['wishlist'] })
+      const previousWishlist = queryClient.getQueryData(['wishlist'])
+      const isAdding = !wishlistData?.isWishlisted
+      
+      queryClient.setQueryData(['wishlist'], (old: IGetWishlistResponse | undefined) => {
+        if (!old) return { items: [], pagination: { total: 0 }, message: '' }
+        
+        if (!isAdding) {
+          return {
+            ...old,
+            items: old.items.filter(item => item.product.id !== product.id)
+          }
+        } else {
+          return {
+            ...old,
+            items: [...old.items, {
+              id: 'temp-id',
+              userId: 'temp-user',
+              productId: product.id,
+              addedAt: new Date().toISOString(),
+              product: product as IProductWishlist
+            }]
+          }
+        }
+      })
+      
+      return { previousWishlist, isAdding }
+    },
+    onError: (error, variables, context) => {
+      if (context?.previousWishlist) {
+        queryClient.setQueryData(['wishlist'], context.previousWishlist)
+      }
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to update wishlist"
+      })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['wishlist'] })
+    }
+  })
+
   const hasDiscount = typeof product.salePrice === "number" && product.salePrice < product.price;
   const discountPercentage = hasDiscount
     ? Math.round(((product.price - product.salePrice!) / product.price) * 100)
@@ -170,12 +249,13 @@ export default function ProductDetails({ product, isWishlisted, onWishlist }: Pr
             ADD TO BAG
           </Button>
           <button
-            onClick={onWishlist}
+            onClick={() => toggleWishlistMutation.mutate()}
             className="w-12 h-12 border border-border rounded hover:bg-secondary transition-colors flex items-center justify-center"
+            disabled={toggleWishlistMutation.isPending}
           >
             <Heart 
               size={20} 
-              className={isWishlisted ? "fill-red-500 text-red-500" : "text-foreground"} 
+              className={wishlistData?.isWishlisted ? "fill-red-500 text-red-500" : "text-foreground"} 
             />
           </button>
         </div>

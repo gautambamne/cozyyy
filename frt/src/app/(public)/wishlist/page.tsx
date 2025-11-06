@@ -4,48 +4,59 @@ import { WishlistAction } from '@/api-actions/wishlist-actions'
 import { ProductCard } from '@/components/base/product-card'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
-import { Heart, Loader2, X } from 'lucide-react'
+import { Heart, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
-
 export default function WishlistPage() {
   const { toast } = useToast()
-
   const queryClient = useQueryClient()
   
   const { data, isLoading, error } = useQuery({
     queryKey: ['wishlist'],
     queryFn: async () => {
       return await WishlistAction.GetWishlistAction({
-        sortOrder: 'desc',
-        limit: 50  // Get all items in one page
+        limit: 50
       })
-    }
+    },
+    refetchOnWindowFocus: false
   })
 
   const clearWishlistMutation = useMutation({
     mutationFn: WishlistAction.ClearWishlistAction,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['wishlist'] })
+    onMutate: async () => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['wishlist'] })
+      
+      // Snapshot previous value
+      const previousWishlist = queryClient.getQueryData(['wishlist'])
+      
+      // Optimistically update to empty wishlist
+      queryClient.setQueryData(['wishlist'], (old: IGetWishlistResponse | undefined) => {
+        if (!old) return { items: [], pagination: { total: 0 }, message: '' }
+        return {
+          ...old,
+          items: []
+        }
+      })
+      
+      return { previousWishlist }
     },
-    onError: (error: Error) => {
+    onError: (error: Error, variables, context) => {
+      // Revert on error
+      if (context?.previousWishlist) {
+        queryClient.setQueryData(['wishlist'], context.previousWishlist)
+      }
       toast({
         title: "Error",
         description: error.message
       })
-    }
-  })
-
-  const removeFromWishlistMutation = useMutation({
-    mutationFn: WishlistAction.RemoveFromWishlistAction,
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['wishlist'] })
-    },
-    onError: (error: Error) => {
       toast({
-        title: "Error",
-        description: error.message
+        title: "Success",
+        description: "Wishlist cleared successfully"
       })
     }
   })
@@ -117,7 +128,7 @@ export default function WishlistPage() {
           <h1 className="text-3xl font-bold">My Wishlist</h1>
           <div className="flex items-center gap-4">
             <p className="text-muted-foreground">
-              {data.items.length} items
+              {data.items.length} {data.items.length === 1 ? 'item' : 'items'}
             </p>
             <Button 
               variant="outline" 
@@ -137,32 +148,18 @@ export default function WishlistPage() {
             // Convert IProductWishlist to IProduct
             const product: IProduct = {
               ...item.product,
-              description: '', // Add missing required fields
+              description: '',
               categoryId: '',
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString()
             };
+            
             return (
-              <div key={item.id} className="relative group">
-                <Button 
-                  variant="ghost" 
-                  size="icon"
-                  className="absolute right-2 top-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={() => removeFromWishlistMutation.mutate({ productId: item.product.id })}
-                  disabled={removeFromWishlistMutation.isPending}
-                >
-                  {removeFromWishlistMutation.isPending ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <X className="w-4 h-4" />
-                  )}
-                </Button>
-                <ProductCard 
-                  key={item.id} 
-                  product={product}
-                  onAddToCart={handleAddToCart}
-                />
-              </div>
+              <ProductCard 
+                key={item.product.id}
+                product={product}
+                onAddToCart={handleAddToCart}
+              />
             );
           })}
         </div>

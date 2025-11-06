@@ -3,7 +3,6 @@
 import { useParams } from "next/navigation"
 import ProductDetails from "./product-details"
 import { useProduct } from "@/hooks/use-products"
-import { useWishlist } from "@/hooks/use-wishlist"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ArrowLeft, ArrowRight } from "lucide-react"
 import { useState } from "react"
@@ -12,7 +11,6 @@ import { Button } from "@/components/ui/button"
 export default function ProductPage() {
   const { product_id } = useParams();
   const { data: product, isLoading, error } = useProduct(product_id as string);
-  const { isWishlisted, toggleWishlist } = useWishlist();
   const [currentImageIndex, setCurrentImageIndex] = useState<number>(0);
 
   if (isLoading) {
@@ -121,8 +119,6 @@ export default function ProductPage() {
           <div>
             <ProductDetails
               product={productData}
-              isWishlisted={isWishlisted(productData.id)}
-              onWishlist={() => toggleWishlist(productData.id)}
             />
           </div>
         </div>

@@ -8,8 +8,6 @@ export default function Home() {
   const { data, isLoading, error } = useProducts({
     isActive: true,
     limit: 20,
-    sortBy: 'createdAt',
-    sortOrder: 'desc'
   })
 
   const handleAddToCart = (productId: string) => {

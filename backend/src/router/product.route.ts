@@ -7,7 +7,7 @@ import {
     DeleteProductController,
     GetProductsByCategoryController
 } from "../controllers/product.controller";
-import { AuthMiddleware } from "../middleware/aurth.middlewate";
+import { AuthMiddleware } from "../middleware/auth.middlewate";
 import { requireRole } from "../middleware/role.middleware";
 import { uploadMultiple } from "../middleware/multer.middleware";
 

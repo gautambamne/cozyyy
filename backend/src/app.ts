@@ -8,6 +8,7 @@ import sessionRouter from './router/session.route'
 import categoryRouter from './router/category.route'
 import productRouter from './router/product.route'
 import wishlistRouter from './router/wishlist.route'
+import cartRouter from './router/cart.route'
 
 const app = express();
 
@@ -29,6 +30,7 @@ app.use('/api/v1/session', sessionRouter);
 app.use('/api/v1/categories', categoryRouter);
 app.use('/api/v1/products', productRouter);
 app.use('/api/v1/wishlist', wishlistRouter);
+app.use('/api/v1/cart', cartRouter);
 
 
 // Error handling middleware (should be last)
