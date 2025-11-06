@@ -129,7 +129,7 @@ export default function ProductDetails({ product }: ProductDetailsProps) {
     },
     refetchOnWindowFocus: false,
     enabled: isAuthenticated,
-    initialData: { items: [], pagination: { total: 0 }, message: '' }
+    initialData: { items: [], pagination: { total: 0, page: 1, limit: 50, totalPages: 0 }, message: '' }
   })
 
   // Mutation for toggling wishlist status

@@ -1,10 +1,10 @@
 'use client'
 import Link from 'next/link'
-import { Menu, X, LayoutDashboard, Heart, ShoppingBag } from 'lucide-react'
+import { Menu, X, LayoutDashboard, Heart, ShoppingBag, ShoppingCart } from 'lucide-react'
 import React from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useCartStore } from '@/store/cart-store'
 import { WishlistAction } from '@/api-actions/wishlist-actions'
-import { AnimatedThemeToggler } from '@/components/ui/theme-button'
 import { Button } from '@/components/ui/button'
 import ProfileDropdown from '@/components/kokonutui/profile-dropdown'
 import { useToast } from '@/hooks/use-toast'
@@ -23,6 +23,7 @@ export const Navbar = () => {
     const [menuState, setMenuState] = React.useState(false)
     const queryClient = useQueryClient()
     const { toast } = useToast()
+    const { openCart, totalItems } = useCartStore()
     const isVendor = user?.roles?.includes('VENDOR')
 
     // Get wishlist data for the badge
@@ -179,16 +180,21 @@ export const Navbar = () => {
                                         </Link>
 
                                         {/* Cart Button */}
-                                        <Link href="/cart">
-                                            <Button variant="ghost" size="icon" className="relative">
-                                                <ShoppingBag className="size-5" />
-                                                <span className="sr-only">Cart</span>
-                                                {/* Cart count badge - if needed */}
+                                        <Button 
+                                            onClick={openCart}
+                                            variant="ghost" 
+                                            size="icon" 
+                                            className="relative"
+                                        >
+                                            <ShoppingCart className="size-5" />
+                                            <span className="sr-only">Cart</span>
+                                            {/* Cart count badge */}
+                                            {totalItems > 0 && (
                                                 <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground">
-                                                    0
+                                                    {totalItems}
                                                 </span>
-                                            </Button>
-                                        </Link>
+                                            )}
+                                        </Button>
 
                                         {/* Profile Dropdown */}
                                         <ProfileDropdown 
