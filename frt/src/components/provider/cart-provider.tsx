@@ -4,7 +4,7 @@ import { useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { CartAction } from '@/api-actions/cart-actions'
 import { useCartStore } from '@/store/cart-store'
-import { Sheet, SheetContent } from '@/components/ui/sheet'
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import CartItems from '../base/cart/cart-items'
 import CartHeader from '../base/cart/cart-header'
 import CartSummary from '../base/cart/cart-summary'
@@ -33,7 +33,11 @@ export function CartProvider() {
 
   return (
     <Sheet open={isOpen} onOpenChange={closeCart}>
-      <SheetContent className="flex w-full sm:max-w-lg flex-col h-full p-0">
+      <SheetContent 
+        className="[&>button]:hidden flex w-full sm:max-w-md flex-col h-full p-0" 
+        side="right"
+      >
+        <SheetTitle className="sr-only">Shopping Cart</SheetTitle>
         <CartHeader />
         <CartItems />
         <CartSummary />

@@ -1,6 +1,7 @@
 "use client"
 
-import { Heart, ShoppingCart } from "lucide-react"
+import { Heart, ShoppingCart, Loader2 } from "lucide-react"
+import { useCartStore } from "@/store/cart-store"
 import { Button } from "@/components/ui/button"
 import Image from "next/image"
 import Link from "next/link"
@@ -13,13 +14,33 @@ import { useEffect } from "react"
 
 interface ProductCardProps {
   product: IProduct;
-  onAddToCart?: (productId: string) => void;
 }
 
-export function ProductCard({ product, onAddToCart }: ProductCardProps) {
+export function ProductCard({ product }: ProductCardProps) {
   const { toast } = useToast()
   const queryClient = useQueryClient()
   const isAuthenticated = useAuthStore(state => state.isAuthenticated)
+  const { addItem } = useCartStore()
+
+  // Add to cart mutation
+  const addToCartMutation = useMutation({
+    mutationFn: async () => {
+      if (!isAuthenticated) {
+        throw new Error("Please login to add items to cart")
+      }
+      return await addItem(product.id, 1)
+    },
+    onSuccess: () => {
+      // Invalidate cart query to refetch updated cart data
+      queryClient.invalidateQueries({ queryKey: ['cart'] })
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add item to cart"
+      })
+    }
+  })
 
   // Effect to clear wishlist data on logout
   useEffect(() => {
@@ -177,14 +198,19 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
         <Button 
           onClick={(e) => {
             e.preventDefault();
-            onAddToCart?.(product.id);
+            addToCartMutation.mutate();
           }} 
           className="flex-1" 
           size="sm"
-          disabled={!product.isActive || product.stock === 0}
+          disabled={!product.isActive || product.stock === 0 || addToCartMutation.isPending}
         >
-          <ShoppingCart className="w-4 h-4 mr-2" />
-          {product.isActive ? 'Add to Cart' : 'Out of Stock'}
+          {addToCartMutation.isPending ? (
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          ) : (
+            <ShoppingCart className="w-4 h-4 mr-2" />
+          )}
+          {!product.isActive ? 'Out of Stock' : 
+           addToCartMutation.isPending ? 'Adding...' : 'Add to Cart'}
         </Button>
 
         {/* Wishlist Button */}

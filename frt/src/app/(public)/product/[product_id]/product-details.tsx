@@ -2,7 +2,8 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Heart, Package, Check } from "lucide-react"
+import { Heart, Check, Package, Loader2 } from "lucide-react"
+import { useCartStore } from "@/store/cart-store"
 import { useCategory } from "@/hooks/use-categories"
 import { Skeleton } from "@/components/ui/skeleton"
 
@@ -113,7 +114,28 @@ export default function ProductDetails({ product }: ProductDetailsProps) {
   const { toast } = useToast()
   const queryClient = useQueryClient()
   const isAuthenticated = useAuthStore(state => state.isAuthenticated)
+  const { addItem } = useCartStore()
   const [selectedSize, setSelectedSize] = useState<string>(product.jewelrySize);
+
+  // Add to cart mutation
+  const addToCartMutation = useMutation({
+    mutationFn: async () => {
+      if (!isAuthenticated) {
+        throw new Error("Please login to add items to cart")
+      }
+      return await addItem(product.id, 1)
+    },
+    onSuccess: () => {
+      // Invalidate cart query to refetch updated cart data
+      queryClient.invalidateQueries({ queryKey: ['cart'] })
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add item to cart",
+      })
+    }
+  });
   
   // Query to check if product is in wishlist
   const { data: wishlistData } = useQuery({
@@ -243,10 +265,15 @@ export default function ProductDetails({ product }: ProductDetailsProps) {
         <div className="flex gap-3">
           <Button 
             className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90 h-12 gap-2"
-            disabled={!product.isActive || product.stock === 0}
+            disabled={!product.isActive || product.stock === 0 || addToCartMutation.isPending}
+            onClick={() => addToCartMutation.mutate()}
           >
-            <Package size={18} />
-            ADD TO BAG
+            {addToCartMutation.isPending ? (
+              <Loader2 size={18} className="animate-spin" />
+            ) : (
+              <Package size={18} />
+            )}
+            {addToCartMutation.isPending ? 'ADDING...' : 'ADD TO BAG'}
           </Button>
           <button
             onClick={() => toggleWishlistMutation.mutate()}

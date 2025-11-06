@@ -7,10 +7,9 @@ import { IGetProductsQuerySchema } from '@/schema/product-schema';
 
 interface ProductGridProps {
   filters?: Partial<IGetProductsQuerySchema>;
-  onAddToCart?: (productId: string) => void;
 }
 
-export const ProductGrid = ({ filters, onAddToCart }: ProductGridProps) => {
+export const ProductGrid = ({ filters }: ProductGridProps) => {
   const { data, isLoading, error } = useQuery({
     queryKey: ['products', filters],
     queryFn: () => ProductAction.GetProductsAction(filters),
@@ -59,7 +58,6 @@ export const ProductGrid = ({ filters, onAddToCart }: ProductGridProps) => {
         <ProductCard
           key={product.id}
           product={product}
-          onAddToCart={onAddToCart}
         />
       ))}
     </div>
