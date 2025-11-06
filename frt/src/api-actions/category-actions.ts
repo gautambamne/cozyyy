@@ -1,6 +1,5 @@
 import axiosInstance from "@/lib/axios-insterceptor"
 import { ICreateCategorySchema, IUpdateCategorySchema, IGetCategoriesQuerySchema, IGetCategorySchema } from "@/schema/category-schema"
-import type { IGetCategoryResposne, IActiveCategory, ICategoryResponse } from "@/types/category.d"
 
 export const CategoryAction = {
     GetCategoriesAction: async (params?: IGetCategoriesQuerySchema): Promise<IGetCategoryResposne> => {
