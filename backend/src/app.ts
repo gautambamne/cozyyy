@@ -9,8 +9,8 @@ import categoryRouter from './router/category.route'
 import productRouter from './router/product.route'
 import wishlistRouter from './router/wishlist.route'
 import cartRouter from './router/cart.route'
-import orderRouter from './router/order.routes'
 import addressRouter from './router/address.route'
+import orderRouter from './router/order.routes'
 
 const app = express();
 
@@ -33,8 +33,8 @@ app.use('/api/v1/categories', categoryRouter);
 app.use('/api/v1/products', productRouter);
 app.use('/api/v1/wishlist', wishlistRouter);
 app.use('/api/v1/cart', cartRouter);
-app.use('/api/v1/orders', orderRouter);
 app.use('/api/v1/addresses', addressRouter);
+app.use('/api/v1/orders', orderRouter);
 
 // Error handling middleware (should be last)
 app.use(errorMiddleware);

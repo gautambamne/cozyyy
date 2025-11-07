@@ -1,28 +1,25 @@
 import type { Request, Response } from 'express';
-import { zodErrorFormatter } from '../utils/error-formater';
-import ApiError from '../advices/ApiError';
-import ApiResponse from '../advices/ApiResponse';
-import { OrderRepository } from '../repositories/order.repositories';
-import { ProductRepository } from '../repositories/product.repositories';
-import { AddressRepository } from '../repositories/address.repositories';
-import { CartRepository } from '../repositories/cart.repositories';
-import asyncHandler from '../utils/asynchandler';
+import ApiError from "../advices/ApiError";
+import ApiResponse from "../advices/ApiResponse";
+import { OrderRepository } from "../repositories/order.repositories";
+import { CartRepository } from "../repositories/cart.repositories";
+import { AddressRepository } from "../repositories/address.repositories";
+import asyncHandler from "../utils/asynchandler";
+import { zodErrorFormatter } from "../utils/error-formater";
 import {
     CreateOrderSchema,
-    GetOrdersQuerySchema,
+    UpdateOrderSchema,
+    GetOrderQuerySchema,
     GetOrderSchema,
-    UpdateOrderStatusSchema,
-    UpdateOrderPaymentStatusSchema,
-} from '../schema/order.schema';
+    CancelOrderSchema
+} from "../schema/order.schema";
 
 /**
  * Create Order Controller
- * Creates a new order from the user's cart
+ * Creates a new order from user's cart items
  */
 export const CreateOrderController = asyncHandler(async (req: Request, res: Response) => {
-    if (!req.user?.id) {
-        throw new ApiError(401, "User not authenticated");
-    }
+    if (!req.user?.id) throw new ApiError(401, "Unauthorized");
 
     const result = CreateOrderSchema.safeParse(req.body);
     if (!result.success) {
@@ -32,91 +29,69 @@ export const CreateOrderController = asyncHandler(async (req: Request, res: Resp
     const { addressId, paymentMethod } = result.data;
     const userId = req.user.id;
 
-    // Get cart items
-    const { items, summary } = await CartRepository.getAllCartItems({ userId });
-    if (!items.length) {
-        throw new ApiError(400, "Cart is empty");
-    }
-
     // Verify address exists and belongs to user
     const address = await AddressRepository.getAddressById(addressId, userId);
     if (!address) {
         throw new ApiError(404, "Delivery address not found");
     }
 
-    // Validate products and prepare order items
-    const cartItems = await Promise.all(
-        items.map(async (item) => {
-            const product = await ProductRepository.getProductById(item.productId);
-            if (!product) {
-                throw new ApiError(404, `Product not found: ${item.productId}`);
-            }
-            if (!product.isActive) {
-                throw new ApiError(400, `Product ${product.name} is not available`);
-            }
-            if (product.stock < item.quantity) {
-                throw new ApiError(400, `Only ${product.stock} units of ${product.name} available`);
-            }
+    // Check if cart has items
+    const { items, summary } = await CartRepository.getAllCartItems({
+        userId,
+        includeInactiveProducts: false
+    });
 
-            const price = product.salePrice || product.price;
-            return {
-                productId: item.productId,
-                quantity: item.quantity,
-                price
-            };
+    if (!items.length) {
+        throw new ApiError(400, "Cart is empty");
+    }
+
+    // Verify product availability and stock
+    for (const item of items) {
+        if (!item.product.isActive) {
+            throw new ApiError(400, `Product ${item.product.name} is no longer available`);
+        }
+        if (item.product.stock < item.quantity) {
+            throw new ApiError(400, `Only ${item.product.stock} units of ${item.product.name} available`);
+        }
+    }
+
+    // Create order
+    const order = await OrderRepository.createOrder({
+        userId,
+        addressId,
+        paymentMethod
+    });
+
+    res.status(201).json(
+        new ApiResponse({
+            order,
+            message: "Order placed successfully"
         })
     );
-
-    try {
-        // Create order from cart items
-        const order = await OrderRepository.createOrder({
-            userId,
-            addressId,
-            paymentMethod: paymentMethod || 'CASH_ON_DELIVERY'
-        });
-
-        // Update product stock and clear cart after successful order creation
-        await Promise.all([
-            ...cartItems.map(item => 
-                ProductRepository.updateProductStock(item.productId, -item.quantity)
-            ),
-            CartRepository.clearCart(userId)
-        ]);
-
-        res.status(201).json(
-            new ApiResponse({
-                order,
-                message: "Order created successfully"
-            })
-        );
-    } catch (error) {
-        // If order creation fails, don't update stock or clear cart
-        throw new ApiError(500, "Failed to create order. Please try again.");
-    }
 });
 
 /**
  * Get Orders Controller
- * Retrieves orders with pagination and filters
+ * Retrieves user's orders with pagination and filters
  */
 export const GetOrdersController = asyncHandler(async (req: Request, res: Response) => {
-    if (!req.user?.id) {
-        throw new ApiError(401, "User not authenticated");
-    }
+    if (!req.user?.id) throw new ApiError(401, "Unauthorized");
 
-    const result = GetOrdersQuerySchema.safeParse(req.query);
+    const result = GetOrderQuerySchema.safeParse(req.query);
     if (!result.success) {
         throw new ApiError(400, "Validation Error", zodErrorFormatter(result.error));
     }
 
-    const { page, limit, status } = result.data;
+    const { page, limit, status, startDate, endDate } = result.data;
     const userId = req.user.id;
 
     const { orders, pagination } = await OrderRepository.getAllOrders({
         userId,
-        status,
         page,
-        limit
+        limit,
+        status,
+        startDate,
+        endDate
     });
 
     res.status(200).json(
@@ -130,12 +105,10 @@ export const GetOrdersController = asyncHandler(async (req: Request, res: Respon
 
 /**
  * Get Order Details Controller
- * Retrieves detailed information about a specific order
+ * Retrieves details of a specific order
  */
 export const GetOrderDetailsController = asyncHandler(async (req: Request, res: Response) => {
-    if (!req.user?.id) {
-        throw new ApiError(401, "User not authenticated");
-    }
+    if (!req.user?.id) throw new ApiError(401, "Unauthorized");
 
     const result = GetOrderSchema.safeParse(req.params);
     if (!result.success) {
@@ -160,127 +133,87 @@ export const GetOrderDetailsController = asyncHandler(async (req: Request, res: 
 
 /**
  * Update Order Status Controller
- * Updates the status of an order (Admin/Vendor only)
+ * Updates the status of an order
+ * Note: This should be restricted to admin/vendor roles
  */
 export const UpdateOrderStatusController = asyncHandler(async (req: Request, res: Response) => {
-    if (!req.user?.id || !req.user?.roles?.includes('VENDOR')) {
-        throw new ApiError(403, "Unauthorized access");
-    }
+    if (!req.user?.id) throw new ApiError(401, "Unauthorized");
+    // TODO: Add role check for VENDOR/ADMIN
 
     const paramResult = GetOrderSchema.safeParse(req.params);
-    const bodyResult = UpdateOrderStatusSchema.safeParse(req.body);
+    const bodyResult = UpdateOrderSchema.safeParse(req.body);
 
-    if (!paramResult.success) {
-        throw new ApiError(400, "Validation Error", zodErrorFormatter(paramResult.error));
-    }
-    if (!bodyResult.success) {
-        throw new ApiError(400, "Validation Error", zodErrorFormatter(bodyResult.error));
+    if (!paramResult.success || !bodyResult.success) {
+        const error = paramResult.success ? bodyResult.error : paramResult.error;
+        throw new ApiError(400, "Validation Error", error ? zodErrorFormatter(error) : undefined);
     }
 
     const { id } = paramResult.data;
     const { status } = bodyResult.data;
 
-    // Verify order exists
-    const existingOrder = await OrderRepository.getOrderById(id);
-    if (!existingOrder) {
-        throw new ApiError(404, "Order not found");
-    }
-
-    // Prevent invalid status transitions
-    if (!isValidStatusTransition(existingOrder.status, status)) {
-        throw new ApiError(400, `Cannot update order status from ${existingOrder.status} to ${status}`);
-    }
-
-    const updatedOrder = await OrderRepository.updateOrderStatus(id, status);
+    const order = await OrderRepository.updateOrderStatus(id, status);
 
     res.status(200).json(
         new ApiResponse({
-            order: updatedOrder,
+            order,
             message: "Order status updated successfully"
         })
     );
 });
 
 /**
- * Update Payment Status Controller
- * Updates the payment status of an order (Admin/Vendor only)
+ * Cancel Order Controller
+ * Cancels an order and restores product stock
  */
-export const UpdatePaymentStatusController = asyncHandler(async (req: Request, res: Response) => {
-    if (!req.user?.id || !req.user?.roles?.includes('VENDOR')) {
-        throw new ApiError(403, "Unauthorized access");
-    }
+export const CancelOrderController = asyncHandler(async (req: Request, res: Response) => {
+    if (!req.user?.id) throw new ApiError(401, "Unauthorized");
 
     const paramResult = GetOrderSchema.safeParse(req.params);
-    const bodyResult = UpdateOrderPaymentStatusSchema.safeParse(req.body);
+    const bodyResult = CancelOrderSchema.safeParse(req.body);
 
-    if (!paramResult.success) {
-        throw new ApiError(400, "Validation Error", zodErrorFormatter(paramResult.error));
-    }
-    if (!bodyResult.success) {
-        throw new ApiError(400, "Validation Error", zodErrorFormatter(bodyResult.error));
+    if (!paramResult.success || !bodyResult.success) {
+        throw new ApiError(400, "Validation Error",
+            paramResult.success && bodyResult.error ? zodErrorFormatter(bodyResult.error) : undefined
+        );
     }
 
     const { id } = paramResult.data;
-    const { paymentStatus } = bodyResult.data;
+    const userId = req.user.id;
 
-    const order = await OrderRepository.updateOrderPaymentStatus(id, paymentStatus);
+    // Verify order exists and belongs to user
+    const existingOrder = await OrderRepository.getOrderById(id, userId);
+    if (!existingOrder) {
+        throw new ApiError(404, "Order not found");
+    }
+
+    if (!['PENDING', 'CONFIRMED'].includes(existingOrder.status)) {
+        throw new ApiError(400, "Order cannot be cancelled");
+    }
+
+    const cancelledOrder = await OrderRepository.cancelOrder(id, userId);
 
     res.status(200).json(
         new ApiResponse({
-            order,
-            message: "Payment status updated successfully"
+            order: cancelledOrder,
+            message: "Order cancelled successfully"
         })
     );
 });
 
 /**
- * Get Order Statistics Controller
- * Retrieves order statistics (Admin/Vendor only)
+ * Get Order Summary Controller
+ * Retrieves order statistics for a user
  */
-export const GetOrderStatsController = asyncHandler(async (req: Request, res: Response) => {
-    if (!req.user?.id || !req.user?.roles?.includes('VENDOR')) {
-        throw new ApiError(403, "Unauthorized access");
-    }
-
-    const stats = await OrderRepository.getOrderStats();
-
-    res.status(200).json(
-        new ApiResponse({
-            stats,
-            message: "Order statistics retrieved successfully"
-        })
-    );
-});
-
-/**
- * Get Recent Orders Controller
- * Retrieves user's recent orders
- */
-export const GetRecentOrdersController = asyncHandler(async (req: Request, res: Response) => {
-    if (!req.user?.id) {
-        throw new ApiError(401, "User not authenticated");
-    }
+export const GetOrderSummaryController = asyncHandler(async (req: Request, res: Response) => {
+    if (!req.user?.id) throw new ApiError(401, "Unauthorized");
 
     const userId = req.user.id;
-    const orders = await OrderRepository.getRecentOrders(userId);
+    const summary = await OrderRepository.getOrderSummary(userId);
 
     res.status(200).json(
         new ApiResponse({
-            orders,
-            message: "Recent orders retrieved successfully"
+            summary,
+            message: "Order summary retrieved successfully"
         })
     );
 });
-
-// Helper function to validate order status transitions
-const isValidStatusTransition = (currentStatus: string, newStatus: string): boolean => {
-    const transitions: Record<string, string[]> = {
-        'PENDING': ['CONFIRMED', 'CANCELLED'],
-        'CONFIRMED': ['SHIPPED', 'CANCELLED'],
-        'SHIPPED': ['DELIVERED', 'CANCELLED'],
-        'DELIVERED': [],
-        'CANCELLED': []
-    };
-
-    return transitions[currentStatus]?.includes(newStatus) || false;
-};

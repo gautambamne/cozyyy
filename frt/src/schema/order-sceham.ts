@@ -1,196 +1,171 @@
 import { z, infer as zodInfer } from 'zod';
 
-// Payment Method Enum
-const PaymentMethodEnum = z.enum([
-    'CASH_ON_DELIVERY',
-    'ONLINE_PAYMENT',
-    'BANK_TRANSFER'
-]);
+export const OrderStatus = {
+    PENDING: 'PENDING',
+    CONFIRMED: 'CONFIRMED',
+    SHIPPED: 'SHIPPED',
+    DELIVERED: 'DELIVERED',
+    CANCELLED: 'CANCELLED'
+} as const;
 
-// Order Status Enum - matching Prisma OrderStatus
-const OrderStatusEnum = z.enum([
-    'PENDING',
-    'CONFIRMED',
-    'SHIPPED',
-    'DELIVERED',
-    'CANCELLED'
-]);
+export const PaymentMethod = {
+    COD: 'COD',
+    CARD: 'CARD',
+    ONLINE: 'ONLINE'
+} as const;
 
-// Payment Status Values
-const PaymentStatusEnum = z.enum([
-    'PENDING',
-    'PROCESSING',
-    'PAID',
-    'FAILED',
-    'REFUNDED'
-]);
+export type OrderStatus = typeof OrderStatus[keyof typeof OrderStatus];
+export type PaymentMethod = typeof PaymentMethod[keyof typeof PaymentMethod];
 
 // Create Order Schema
 const CreateOrderSchema = z.object({
-    addressId: z.string()
-        .uuid('Invalid address ID format'),
-    paymentMethod: z.string()
-        .optional()
-        .default('CASH_ON_DELIVERY')
-        .nullable()
+    addressId: z.string().uuid('Invalid address ID'),
+    paymentMethod: z.enum(['COD', 'CARD', 'ONLINE'])
+        .default('COD')
+        .describe('Payment method for the order')
 });
 
-// Update Order Status Schema
-const UpdateOrderStatusSchema = z.object({
-    status: OrderStatusEnum
+// Update Order Schema (for status updates)
+const UpdateOrderSchema = z.object({
+    status: z.enum(['PENDING', 'CONFIRMED', 'SHIPPED', 'DELIVERED', 'CANCELLED'])
+        .describe('Current status of the order')
 });
 
-// Update Order Payment Status Schema
-const UpdateOrderPaymentStatusSchema = z.object({
-    paymentStatus: z.string()
-});
-
-// Get Orders Query Schema
-const GetOrdersQuerySchema = z.object({
+// Get Order Query Schema
+const GetOrderQuerySchema = z.object({
     page: z.string()
         .optional()
         .transform((val) => val ? parseInt(val) : 1)
         .refine((val) => val > 0, 'Page must be greater than 0'),
     limit: z.string()
         .optional()
-        .transform((val) => val ? parseInt(val) : 12)
+        .transform((val) => val ? parseInt(val) : 10)
         .refine((val) => val > 0 && val <= 50, 'Limit must be between 1 and 50'),
-    status: OrderStatusEnum
+    status: z.enum(['PENDING', 'CONFIRMED', 'SHIPPED', 'DELIVERED', 'CANCELLED'])
+        .optional(),
+    startDate: z.string()
         .optional()
+        .transform((val) => val ? new Date(val) : undefined)
+        .refine(
+            (date) => !date || !isNaN(date.getTime()),
+            'Invalid start date format'
+        ),
+    endDate: z.string()
+        .optional()
+        .transform((val) => val ? new Date(val) : undefined)
+        .refine(
+            (date) => !date || !isNaN(date.getTime()),
+            'Invalid end date format'
+        )
 });
 
 // Get Single Order Schema
 const GetOrderSchema = z.object({
-    id: z.string()
-        .uuid('Invalid order ID format')
+    id: z.string().uuid('Invalid order ID')
+});
+
+// Cancel Order Schema
+const CancelOrderSchema = z.object({
+    id: z.string().uuid('Invalid order ID'),
+    reason: z.string()
+        .min(10, 'Cancellation reason must be at least 10 characters')
+        .max(500, 'Cancellation reason cannot exceed 500 characters')
 });
 
 // Order Item Response Schema
 const OrderItemResponseSchema = z.object({
     id: z.string().uuid(),
-    orderId: z.string().uuid(),
     productId: z.string().uuid(),
-    quantity: z.number().int().positive(),
-    price: z.number().nonnegative(),
     product: z.object({
-        id: z.string().uuid(),
         name: z.string(),
-        images: z.array(z.string()),
-        jewelrySize: z.enum(['SMALL', 'MEDIUM', 'LARGE', 'EXTRA_LARGE', 'CUSTOM']).nullable(),
-        vendor: z.object({
-            id: z.string().uuid(),
-            name: z.string(),
-            email: z.string().email()
-        }).optional()
-    })
+        images: z.array(z.string())
+    }).optional()
 });
 
-// Address Response Schema for Orders
-const OrderAddressResponseSchema = z.object({
-    street: z.string(),
-    city: z.string(),
-    state: z.string(),
-    postalCode: z.string(),
-    country: z.string(),
-    phone: z.string()
+// Payment Response Schema
+const PaymentResponseSchema = z.object({
+    id: z.string().uuid(),
+    amount: z.number(),
+    currency: z.string(),
+    paymentMethod: z.enum(['COD', 'CARD', 'ONLINE']),
+    stripePaymentId: z.string().nullable(),
+    createdAt: z.date(),
+    updatedAt: z.date()
 });
 
 // Order Response Schema
 const OrderResponseSchema = z.object({
     id: z.string().uuid(),
-    orderNumber: z.string().uuid(), // Matching Prisma's @default(uuid())
-    userId: z.string().uuid(),
+    orderNumber: z.string(),
     addressId: z.string().uuid(),
-    total: z.number().nonnegative(),
-    status: OrderStatusEnum,
-    paymentMethod: z.string().nullable(), // Matching Prisma's String?
-    paymentStatus: z.string(), // Matching Prisma's String
-    notes: z.string().nullable(),
+    total: z.number(),
+    status: z.enum(['PENDING', 'CONFIRMED', 'SHIPPED', 'DELIVERED', 'CANCELLED']),
     createdAt: z.date(),
     updatedAt: z.date(),
     items: z.array(OrderItemResponseSchema),
-    address: OrderAddressResponseSchema,
-    user: z.object({
-        id: z.string().uuid(),
-        name: z.string(),
-        email: z.string().email()
-    }).optional()
+    payment: PaymentResponseSchema.optional()
 });
 
 // Order List Response Schema
 const OrderListResponseSchema = z.object({
     orders: z.array(OrderResponseSchema),
     pagination: z.object({
-        page: z.number().positive(),
-        limit: z.number().positive(),
-        total: z.number().nonnegative(),
-        totalPages: z.number().positive()
+        page: z.number(),
+        limit: z.number(),
+        total: z.number(),
+        totalPages: z.number()
     })
 });
 
-// Order Statistics Schema
-const OrderStatsResponseSchema = z.object({
-    total: z.number().nonnegative(),
-    pending: z.number().nonnegative(),
-    confirmed: z.number().nonnegative(),
-    shipped: z.number().nonnegative(),
-    delivered: z.number().nonnegative(),
-    cancelled: z.number().nonnegative(),
-    totalRevenue: z.number().nonnegative(),
-    averageOrderValue: z.number().nonnegative(),
-    paymentStats: z.object({
-        pending: z.number().nonnegative(),
-        paid: z.number().nonnegative(),
-        failed: z.number().nonnegative(),
-        refunded: z.number().nonnegative()
-    })
+// Order Summary Schema
+const OrderSummarySchema = z.object({
+    total: z.number(),
+    pending: z.number(),
+    confirmed: z.number(),
+    shipped: z.number(),
+    delivered: z.number(),
+    cancelled: z.number(),
+    todayOrders: z.number(),
+    thisWeekOrders: z.number(),
+    thisMonthOrders: z.number()
 });
 
-// Infer types from schemas
+// Type inference for all schemas
 type ICreateOrderSchema = zodInfer<typeof CreateOrderSchema>;
-type IUpdateOrderStatusSchema = zodInfer<typeof UpdateOrderStatusSchema>;
-type IUpdateOrderPaymentStatusSchema = zodInfer<typeof UpdateOrderPaymentStatusSchema>;
-type IGetOrdersQuerySchema = zodInfer<typeof GetOrdersQuerySchema>;
+type IUpdateOrderSchema = zodInfer<typeof UpdateOrderSchema>;
+type IGetOrderQuerySchema = zodInfer<typeof GetOrderQuerySchema>;
 type IGetOrderSchema = zodInfer<typeof GetOrderSchema>;
+type ICancelOrderSchema = zodInfer<typeof CancelOrderSchema>;
 type IOrderItemResponseSchema = zodInfer<typeof OrderItemResponseSchema>;
-type IOrderAddressResponseSchema = zodInfer<typeof OrderAddressResponseSchema>;
+type IPaymentResponseSchema = zodInfer<typeof PaymentResponseSchema>;
 type IOrderResponseSchema = zodInfer<typeof OrderResponseSchema>;
 type IOrderListResponseSchema = zodInfer<typeof OrderListResponseSchema>;
-type IOrderStatsResponseSchema = zodInfer<typeof OrderStatsResponseSchema>;
+type IOrderSummarySchema = zodInfer<typeof OrderSummarySchema>;
 
-// Infer enum types
-type PaymentMethod = zodInfer<typeof PaymentMethodEnum>;
-type OrderStatus = zodInfer<typeof OrderStatusEnum>;
-type PaymentStatus = zodInfer<typeof PaymentStatusEnum>;
-
+// Export types
 export type {
     ICreateOrderSchema,
-    IUpdateOrderStatusSchema,
-    IUpdateOrderPaymentStatusSchema,
-    IGetOrdersQuerySchema,
+    IUpdateOrderSchema,
+    IGetOrderQuerySchema,
     IGetOrderSchema,
+    ICancelOrderSchema,
     IOrderItemResponseSchema,
-    IOrderAddressResponseSchema,
+    IPaymentResponseSchema,
     IOrderResponseSchema,
     IOrderListResponseSchema,
-    IOrderStatsResponseSchema,
-    PaymentMethod,
-    OrderStatus,
-    PaymentStatus
+    IOrderSummarySchema,
 };
 
+// Export schemas
 export {
-    PaymentMethodEnum,
-    OrderStatusEnum,
-    PaymentStatusEnum,
     CreateOrderSchema,
-    UpdateOrderStatusSchema,
-    UpdateOrderPaymentStatusSchema,
-    GetOrdersQuerySchema,
+    UpdateOrderSchema,
+    GetOrderQuerySchema,
     GetOrderSchema,
+    CancelOrderSchema,
     OrderItemResponseSchema,
-    OrderAddressResponseSchema,
+    PaymentResponseSchema,
     OrderResponseSchema,
     OrderListResponseSchema,
-    OrderStatsResponseSchema
+    OrderSummarySchema
 };

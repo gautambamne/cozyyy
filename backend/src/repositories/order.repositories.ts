@@ -1,97 +1,149 @@
-import { prisma } from "../db/database"
-import type { Prisma, Order } from "../generated/client"
-import { OrderStatus } from "../generated/client"
+import { type Prisma } from '@prisma/client';
+import { prisma } from '../db/database';
+import { OrderStatus, PaymentMethod } from '../schema/order.schema';
+
+type OrderWithDetails = Prisma.PromiseReturnType<typeof prisma.order.findFirst> & {
+    items: Array<{
+        id: string;
+        productId: string;
+        quantity: number;
+        price: number;
+        product: {
+            name: string;
+            images: string[];
+        };
+    }>;
+    payment?: {
+        id: string;
+        amount: number;
+        currency: string;
+        paymentMethod: PaymentMethod;
+        status: OrderStatus;
+        stripePaymentId: string | null;
+        createdAt: Date;
+        updatedAt: Date;
+    } | null;
+};
 
 export const OrderRepository = {
     // Create a new order from cart items
     createOrder: async(data: {
         userId: string;
         addressId: string;
-        paymentMethod?: string | null;
-        notes?: string | null;
-    }): Promise<Order> => {
-        // Get cart items for the user
-        const cartItems = await prisma.cartItem.findMany({
-            where: { userId: data.userId },
-            include: {
-                product: true
-            }
-        });
-
-        if (!cartItems.length) {
-            throw new Error('Cart is empty');
-        }
-
-        // Calculate order total
-        const total = cartItems.reduce((sum, item) => 
-            sum + (item.product.price * item.quantity), 0
-        );
-
-        // Create order with items from cart
-        return await prisma.order.create({
-            data: {
-                user: { connect: { id: data.userId } },
-                address: { connect: { id: data.addressId } },
-                total,
-                paymentMethod: data.paymentMethod || 'CASH_ON_DELIVERY',
-                notes: data.notes,
-                items: {
-                    create: cartItems.map(item => ({
-                        product: { connect: { id: item.productId } },
-                        quantity: item.quantity,
-                        price: item.product.price
-                    }))
-                }
-            },
-            include: {
-                items: {
-                    include: {
+        paymentMethod: PaymentMethod;
+    }): Promise<OrderWithDetails> => {
+        // Start a transaction with increased timeout
+        return await prisma.$transaction(async (tx) => {
+            try {
+                // 1. Get user's cart items and verify stock
+                const cartItems = await tx.cartItem.findMany({
+                    where: {
+                        userId: data.userId,
                         product: {
-                            select: {
-                                id: true,
-                                name: true,
-                                images: true,
-                                jewelrySize: true
+                            isActive: true
+                        }
+                    },
+                    include: {
+                        product: true
+                    }
+                });
+
+                if (!cartItems.length) {
+                    throw new Error('Cart is empty');
+                }
+
+                // Verify stock availability
+                for (const item of cartItems) {
+                    if (item.product.stock < item.quantity) {
+                        throw new Error(`Insufficient stock for product: ${item.product.name}`);
+                    }
+                }
+
+                // 2. Calculate total
+                const total = cartItems.reduce((sum, item) => {
+                    const price = item.product.salePrice || item.product.price;
+                    return sum + (price * item.quantity);
+                }, 0);
+
+                // 3. Create the order
+                const order = await tx.order.create({
+                    data: {
+                        user: {
+                            connect: { id: data.userId }
+                        },
+                        address: {
+                            connect: { id: data.addressId }
+                        },
+                        total,
+                        items: {
+                            create: cartItems.map(item => ({
+                                product: {
+                                    connect: { id: item.productId }
+                                },
+                                quantity: item.quantity,
+                                price: item.product.salePrice || item.product.price
+                            }))
+                        },
+                        payment: {
+                            create: {
+                                amount: total,
+                                paymentMethod: data.paymentMethod,
+                                status: OrderStatus.PENDING,
+                                currency: 'INR'
                             }
                         }
+                    },
+                    include: {
+                        items: {
+                            include: {
+                                product: {
+                                    select: {
+                                        name: true,
+                                        images: true
+                                    }
+                                }
+                            }
+                        },
+                        payment: true
                     }
-                },
-                address: true
+                });
+
+                // 4. Clear cart and update product stock in parallel
+                await Promise.all([
+                    // Clear cart
+                    tx.cartItem.deleteMany({
+                        where: {
+                            userId: data.userId
+                        }
+                    }),
+                    // Update all product stock in parallel
+                    ...cartItems.map(item => 
+                        tx.product.update({
+                            where: { id: item.productId },
+                            data: {
+                                stock: {
+                                    decrement: item.quantity
+                                }
+                            }
+                        })
+                    )
+                ]);
+
+                return order;
+            } catch (error) {
+                // Re-throw the error to be handled by the service layer
+                throw error;
             }
+        }, {
+            timeout: 10000, // Increase timeout to 10 seconds
+            maxWait: 5000 // Maximum time to wait for transaction to start
         });
     },
 
-    // Get a single order with all details
-    getOrderById: async(orderId: string, userId?: string): Promise<Order | null> => {
+    // Get a single order
+    getOrderById: async(orderId: string, userId?: string): Promise<OrderWithDetails | null> => {
         const where: Prisma.OrderWhereInput = {
             id: orderId,
-            ...(userId && { userId }) // Only include user's orders if userId is provided
-        };
-
-        return await prisma.order.findFirst({
-            where,
-            include: {
-                items: {
-                    include: {
-                        product: {
-                            select: {
-                                id: true,
-                                name: true,
-                                images: true,
-                                jewelrySize: true
-                            }
-                        }
-                    }
-                },
-                address: true
-            }
-        });
-    },
-
-    // Get order by order number
-    getOrderByOrderNumber: async(orderNumber: string, userId?: string): Promise<Order | null> => {
-        const where: Prisma.OrderWhereInput = {
-            orderNumber,
             ...(userId && { userId })
         };
 
@@ -102,33 +154,31 @@ export const OrderRepository = {
                     include: {
                         product: {
                             select: {
-                                id: true,
                                 name: true,
-                                images: true,
-                                jewelrySize: true
+                                images: true
                             }
                         }
                     }
                 },
-                address: true
+                payment: true
             }
         });
     },
 
     // Get all orders with filtering and pagination
     getAllOrders: async(params: {
-        userId?: string;
-        status?: OrderStatus;
+        userId: string;
         page?: number;
         limit?: number;
+        status?: OrderStatus;
         startDate?: Date;
         endDate?: Date;
     }) => {
         const {
             userId,
-            status,
             page = 1,
-            limit = 12,
+            limit = 10,
+            status,
             startDate,
             endDate
         } = params;
@@ -138,12 +188,12 @@ export const OrderRepository = {
 
         // Build where clause
         const where: Prisma.OrderWhereInput = {
-            ...(userId && { userId }),
+            userId,
             ...(status && { status }),
-            ...(startDate && endDate && {
+            ...(startDate && {
                 createdAt: {
                     gte: startDate,
-                    lte: endDate
+                    ...(endDate && { lte: endDate })
                 }
             })
         };
@@ -154,23 +204,19 @@ export const OrderRepository = {
                 where,
                 skip,
                 take: limit,
-                orderBy: {
-                    createdAt: 'desc'
-                },
+                orderBy: { createdAt: 'desc' },
                 include: {
                     items: {
                         include: {
                             product: {
                                 select: {
-                                    id: true,
                                     name: true,
-                                    images: true,
-                                    jewelrySize: true
+                                    images: true
                                 }
                             }
                         }
                     },
-                    address: true
+                    payment: true
                 }
             }),
             prisma.order.count({ where })
@@ -188,144 +234,159 @@ export const OrderRepository = {
     },
 
     // Update order status
-    updateOrderStatus: async(orderId: string, status: OrderStatus): Promise<Order> => {
+    updateOrderStatus: async(orderId: string, status: OrderStatus, userId?: string): Promise<OrderWithDetails> => {
+        const where: Prisma.OrderWhereUniqueInput = { id: orderId };
+
+        // If userId provided, verify ownership
+        if (userId) {
+            const order = await prisma.order.findFirst({
+                where: { id: orderId, userId }
+            });
+            if (!order) throw new Error('Order not found');
+        }
+
         return await prisma.order.update({
-            where: { id: orderId },
-            data: { status },
+            where,
+            data: { 
+                status,
+                payment: {
+                    update: {
+                        status
+                    }
+                }
+            },
             include: {
                 items: {
                     include: {
                         product: {
                             select: {
-                                id: true,
-                                name: true,
-                                images: true,
-                                jewelrySize: true
-                            }
-                        }
-                    }
-                },
-                address: true
-            }
-        });
-    },
-
-    // Update order payment status
-    updateOrderPaymentStatus: async(orderId: string, paymentStatus: string): Promise<Order> => {
-        return await prisma.order.update({
-            where: { id: orderId },
-            data: { paymentStatus },
-            include: {
-                items: {
-                    include: {
-                        product: {
-                            select: {
-                                id: true,
-                                name: true,
-                                images: true,
-                                jewelrySize: true
-                            }
-                        }
-                    }
-                },
-                address: true
-            }
-        });
-    },
-
-    // Get order statistics with enhanced metrics
-    getOrderStats: async(userId?: string) => {
-        const where: Prisma.OrderWhereInput = userId ? { userId } : {};
-
-        const [
-            ordersStats,
-            paymentStats,
-            revenueStats
-        ] = await Promise.all([
-            // Order status stats
-            prisma.order.groupBy({
-                by: ['status'],
-                where,
-                _count: true
-            }),
-            // Payment status stats
-            prisma.order.groupBy({
-                by: ['paymentStatus'],
-                where,
-                _count: true
-            }),
-            // Revenue stats
-            prisma.order.aggregate({
-                where: {
-                    ...where,
-                    status: {
-                        in: ['CONFIRMED', 'SHIPPED', 'DELIVERED']
-                    }
-                },
-                _sum: { total: true },
-                _avg: { total: true }
-            })
-        ]);
-
-        // Process order status counts
-        const statusCounts = ordersStats.reduce((acc, stat) => ({
-            ...acc,
-            [stat.status.toLowerCase()]: stat._count
-        }), {
-            total: 0,
-            pending: 0,
-            confirmed: 0,
-            shipped: 0,
-            delivered: 0,
-            cancelled: 0
-        });
-
-        // Process payment status counts
-        const paymentCounts = paymentStats.reduce((acc, stat) => ({
-            ...acc,
-            [stat.paymentStatus.toLowerCase()]: stat._count
-        }), {
-            pending: 0,
-            paid: 0,
-            failed: 0,
-            refunded: 0
-        });
-
-        return {
-            ...statusCounts,
-            totalRevenue: revenueStats._sum.total || 0,
-            averageOrderValue: revenueStats._avg.total || 0,
-            paymentStats: paymentCounts
-        };
-    },
-
-    // Check if order exists
-    checkOrderExists: async(orderId: string): Promise<boolean> => {
-        const count = await prisma.order.count({
-            where: { id: orderId }
-        });
-        return count > 0;
-    },
-
-    // Get recent orders
-    getRecentOrders: async(userId: string, limit: number = 5): Promise<Order[]> => {
-        return await prisma.order.findMany({
-            where: { userId },
-            orderBy: { createdAt: 'desc' },
-            take: limit,
-            include: {
-                items: {
-                    include: {
-                        product: {
-                            select: {
-                                id: true,
                                 name: true,
                                 images: true
                             }
                         }
                     }
-                }
+                },
+                payment: true
             }
         });
+    },
+
+    // Cancel order
+    cancelOrder: async(orderId: string, userId?: string): Promise<OrderWithDetails> => {
+        return await prisma.$transaction(async (tx) => {
+            // Find the order
+            const order = await tx.order.findFirst({
+                where: {
+                    id: orderId,
+                    ...(userId && { userId }),
+                    status: {
+                        in: [OrderStatus.PENDING, OrderStatus.CONFIRMED]
+                    }
+                },
+                include: {
+                    items: true
+                }
+            });
+
+            if (!order) {
+                throw new Error('Order not found or cannot be cancelled');
+            }
+
+            // Restore product stock
+            for (const item of order.items) {
+                await tx.product.update({
+                    where: { id: item.productId },
+                    data: {
+                        stock: {
+                            increment: item.quantity
+                        }
+                    }
+                });
+            }
+
+            // Update order status
+            return await tx.order.update({
+                where: { id: orderId },
+                data: {
+                    status: OrderStatus.CANCELLED,
+                    payment: {
+                        update: {
+                            status: OrderStatus.CANCELLED
+                        }
+                    }
+                },
+                include: {
+                    items: {
+                        include: {
+                            product: {
+                                select: {
+                                    name: true,
+                                    images: true
+                                }
+                            }
+                        }
+                    },
+                    payment: true
+                }
+            });
+        });
+    },
+
+    // Get order summary/statistics
+    getOrderSummary: async(userId: string) => {
+        const [
+            total,
+            pending,
+            confirmed,
+            shipped,
+            delivered,
+            cancelled,
+            todayOrders,
+            thisWeekOrders,
+            thisMonthOrders
+        ] = await Promise.all([
+            prisma.order.count({ where: { userId } }),
+            prisma.order.count({ where: { userId, status: OrderStatus.PENDING } }),
+            prisma.order.count({ where: { userId, status: OrderStatus.CONFIRMED } }),
+            prisma.order.count({ where: { userId, status: OrderStatus.SHIPPED } }),
+            prisma.order.count({ where: { userId, status: OrderStatus.DELIVERED } }),
+            prisma.order.count({ where: { userId, status: OrderStatus.CANCELLED } }),
+            prisma.order.count({
+                where: {
+                    userId,
+                    createdAt: {
+                        gte: new Date(new Date().setHours(0, 0, 0, 0))
+                    }
+                }
+            }),
+            prisma.order.count({
+                where: {
+                    userId,
+                    createdAt: {
+                        gte: new Date(new Date().setDate(new Date().getDate() - 7))
+                    }
+                }
+            }),
+            prisma.order.count({
+                where: {
+                    userId,
+                    createdAt: {
+                        gte: new Date(new Date().setDate(1))
+                    }
+                }
+            })
+        ]);
+
+        return {
+            total,
+            pending,
+            confirmed,
+            shipped,
+            delivered,
+            cancelled,
+            todayOrders,
+            thisWeekOrders,
+            thisMonthOrders
+        };
     }
 };

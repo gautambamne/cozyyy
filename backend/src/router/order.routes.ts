@@ -1,34 +1,25 @@
-import { Router } from 'express';
-import { AuthMiddleware } from '../middleware/auth.middlewate';
-import { requireRole } from '../middleware/role.middleware';
+import { Router } from "express";
+import { AuthMiddleware } from "../middleware/auth.middlewate";
+import { requireRole } from "../middleware/role.middleware";
 import {
-    CreateOrderController,
-    GetOrdersController,
-    GetOrderDetailsController,
-    UpdateOrderStatusController,
-    UpdatePaymentStatusController,
-    GetOrderStatsController,
-    GetRecentOrdersController
-} from '../controllers/order.controller';
+  CreateOrderController,
+  GetOrdersController,
+  GetOrderDetailsController,
+  UpdateOrderStatusController,
+  CancelOrderController,
+  GetOrderSummaryController,
+} from "../controllers/order.controller";
 
-const router = Router();
+const orderRouter = Router();
 
-// All order routes require authentication
-router.use(AuthMiddleware);
+// User routes (requires authentication)
+orderRouter.get("/", AuthMiddleware, GetOrdersController);
+orderRouter.get("/summary", AuthMiddleware, GetOrderSummaryController);
+orderRouter.get("/:id", AuthMiddleware, GetOrderDetailsController);
+orderRouter.post("/", AuthMiddleware, CreateOrderController);
+orderRouter.post("/:id/cancel", AuthMiddleware, CancelOrderController);
 
-// Customer routes - Cart to Order
-router.post('/create', CreateOrderController);
+// Vendor routes (requires authentication and vendor role)
+orderRouter.patch("/:id/status", AuthMiddleware, requireRole(["VENDOR"]), UpdateOrderStatusController);
 
-// Order Listing & Details
-router.get('/', GetOrdersController);
-router.get('/recent', GetRecentOrdersController);
-router.get('/:id', GetOrderDetailsController);
-
-// Stats and Analytics (Vendor only)
-router.get('/stats/overview', requireRole(['VENDOR']), GetOrderStatsController);
-
-// Order Management (Vendor only)
-router.patch('/:id/status', requireRole(['VENDOR']), UpdateOrderStatusController);
-router.patch('/:id/payment', requireRole(['VENDOR']), UpdatePaymentStatusController);
-
-export default router;
+export default orderRouter;
