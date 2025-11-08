@@ -23,7 +23,15 @@ const initialSummary: ISummary = {
   subtotal: 0,
   discount: 0,
   total: 0,
-  itemCount: 0
+  itemCount: 0,
+  pending: 0,
+  confirmed: 0,
+  shipped: 0,
+  delivered: 0,
+  cancelled: 0,
+  todayOrders: 0,
+  thisWeekOrders: 0,
+  thisMonthOrders: 0
 }
 
 export const useCartStore = create<CartStore>((set, get) => ({
