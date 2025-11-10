@@ -43,7 +43,7 @@ export default function CartSummary() {
 
   return (
     <>
-      <div className="border-t bg-background">
+      <div className="border-t bg-background sticky bottom-0 w-full shadow-md">
         <div className="p-4 space-y-4">
           <div className="space-y-2">
             {/* Subtotal */}

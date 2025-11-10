@@ -1,3 +1,4 @@
+import ApiError from "@/advices/ApiError";
 import { prisma } from "../db/database"
 import type { Prisma, Address } from "../generated"
 
@@ -195,6 +196,17 @@ export const AddressRepository = {
                     data: { isDefault: true }
                 });
             }
+        }
+
+        // Check if address is used in any orders
+        const ordersWithAddress = await prisma.order.findFirst({
+            where: {
+                addressId: addressId
+            }
+        });
+
+        if (ordersWithAddress) {
+            throw new ApiError(400, "Cannot delete address as it is associated with orders");
         }
 
         return await prisma.address.delete({

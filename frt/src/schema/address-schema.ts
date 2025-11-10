@@ -21,7 +21,6 @@ const CreateAddressSchema = z.object({
     phone: z.string()
         .regex(/^\+?[1-9]\d{9,14}$/, 'Invalid phone number format. Must be between 10 and 15 digits'),
     isDefault: z.boolean()
-        .default(false)
 });
 
 // Update Address Schema

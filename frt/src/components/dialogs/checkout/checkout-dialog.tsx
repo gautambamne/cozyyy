@@ -1,12 +1,12 @@
 'use client'
 
 import { Dialog, DialogContent } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
 import { useState } from 'react'
 import { useCartStore } from '@/store/cart-store'
-import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Checkbox } from '@/components/ui/checkbox'
+import { ShippingAddress } from './shipping-address'
+import { Loader2, ShoppingBag } from 'lucide-react'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { cn } from '@/lib/utils'
 
 interface CheckoutDialogProps {
   open: boolean
@@ -14,8 +14,20 @@ interface CheckoutDialogProps {
 }
 
 export function CheckoutDialog({ open, onOpenChange }: CheckoutDialogProps) {
-  const { summary } = useCartStore()
-  const [saveInfo, setSaveInfo] = useState(false)
+  const { items, summary } = useCartStore()
+  const [selectedAddress, setSelectedAddress] = useState<{
+    id: string;
+    userId: string;
+    street: string;
+    city: string;
+    state: string;
+    postalCode: string;
+    country: string;
+    phone: string;
+    isDefault: boolean;
+    createdAt: string;
+    updatedAt: string;
+  }>();
 
   // Prevent dialog from closing on escape or outside click
   const handleOpenChange = (newOpen: boolean) => {
@@ -30,158 +42,86 @@ export function CheckoutDialog({ open, onOpenChange }: CheckoutDialogProps) {
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent 
-        className="sm:max-w-[1100px] bg-black text-white"
+        className="sm:max-w-[800px] w-[750px] h-[550px] bg-background rounded-none overflow-hidden flex flex-col"
         onEscapeKeyDown={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
       >
-        <div className="flex flex-1 flex-row w-full">
+        <div className="flex flex-1 flex-row w-full overflow-hidden">
           {/* Left: Shipping Address */}
-          <div className="flex-1 mr-10">
-            <h1 className="text-2xl font-bold mb-6">Shipping address</h1>
-            <form className="space-y-5" onSubmit={(e) => e.preventDefault()}>
-              <div>
-                <label className="mb-1 block text-sm font-medium">Country/Region</label>
-                <Select defaultValue="United States">
-                  <SelectTrigger className="w-full rounded-lg bg-[#111] border-gray-700">
-                    <SelectValue placeholder="Select country" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="United States">United States</SelectItem>
-                    <SelectItem value="India">India</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="flex gap-4">
-                <Input
-                  placeholder="First name (optional)"
-                  className="flex-1 rounded-lg bg-[#111] border-gray-700"
-                />
-                <Input
-                  placeholder="Last name"
-                  className="flex-1 rounded-lg bg-[#111] border-gray-700"
-                />
-              </div>
-
-              <div>
-                <Input
-                  placeholder="Address"
-                  className="w-full rounded-lg bg-[#111] border-gray-700"
-                />
-                <span className="text-xs text-gray-400 flex items-center mt-1">
-                  <svg className="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 12 12">
-                    <circle cx="6" cy="6" r="5.5" />
-                  </svg>
-                  Add a house number if you have one
-                </span>
-              </div>
-
-              <div>
-                <Input
-                  placeholder="Apartment, suite, etc. (optional)"
-                  className="w-full rounded-lg bg-[#111] border-gray-700"
-                />
-              </div>
-
-              <div className="flex gap-4">
-                <Input
-                  placeholder="City"
-                  className="flex-1 rounded-lg bg-[#111] border-gray-700"
-                />
-                <Select defaultValue="Hawaii">
-                  <SelectTrigger className="flex-1 rounded-lg bg-[#111] border-gray-700">
-                    <SelectValue placeholder="Select state" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Hawaii">Hawaii</SelectItem>
-                    {/* Add more states */}
-                  </SelectContent>
-                </Select>
-                <Input
-                  placeholder="ZIP code"
-                  className="flex-1 rounded-lg bg-[#111] border-gray-700"
-                />
-              </div>
-              
-              <span className="text-xs text-gray-400 flex items-center mt-1">
-                <svg className="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 12 12">
-                  <circle cx="6" cy="6" r="5.5" />
-                </svg>
-                Did you mean <span className="text-blue-400 ml-1">Aiea?</span>
-              </span>
-
-              <label className="flex items-center gap-3 mt-3 text-sm">
-                <Checkbox
-                  checked={saveInfo}
-                  onCheckedChange={(checked) => setSaveInfo(checked as boolean)}
-                  className="border-gray-700 bg-[#222]"
-                />
-                Save this information for next time
-              </label>
-
-              <Button
-                type="button"
-                className="w-full mt-6 bg-blue-600 hover:bg-blue-700 rounded-lg py-3 font-semibold text-white transition"
-                onClick={() => {
-                  // Handle form submission
-                  console.log('Continue to shipping')
-                }}
-              >
-                Continue to shipping
-              </Button>
-            </form>
-            
-            <div className="mt-10 text-xs text-gray-500">
-              All rights reserved Dev Vercel Shop
+          <div className="flex-1 mr-8">
+    
+            <ShippingAddress 
+              onAddressSelect={(address) => {
+                setSelectedAddress(address);
+                // Handle the selected address, e.g., proceed to next step
+                console.log('Selected address for shipping:', address);
+              }}
+              selectedAddressId={selectedAddress?.id}
+            />
+            <div className="px-6 mt-6 text-xs text-gray-500">
+              All rights reserved Cozy Girlly
             </div>
           </div>
 
           {/* Right: Order Summary */}
-          <div className="w-[340px] flex-shrink-0 pl-10 border-l border-gray-800">
-            <div className="flex gap-3 items-center mb-6">
-              <div className="relative">
-                <img
-                  src="https://placehold.co/56x56"
-                  alt="Product"
-                  className="rounded-lg w-14 h-14 object-cover"
-                />
-                <div className="absolute -top-2 -right-2 bg-gray-700 text-xs px-2 py-1 rounded-full border border-gray-900">
-                  1
-                </div>
-              </div>
-              <div>
-                <div className="font-bold text-white">Acme Cup</div>
-                <div className="text-sm text-gray-400">Black</div>
-              </div>
+          <div className="w-[300px] shrink-0 pl-8 border-l border-border">
+            <div className="mb-4">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                <ShoppingBag className="w-5 h-5" />
+                Order Summary
+              </h2>
             </div>
 
-            <div className="space-y-2 text-md">
+            <ScrollArea className="h-[280px] pr-4">
+              {items?.map((item: ICart) => (
+                <div key={item.productId} className="flex gap-3 items-start mb-4 group pt-3 pb-2 first:pt-0">
+                  <div className="relative pt-2 pr-2">
+                    <img
+                      src={item.product?.images[0] || "https://placehold.co/56x56"}
+                      alt={item.product?.name}
+                      className="rounded-lg w-14 h-14 object-cover bg-muted"
+                    />
+                    <div className="absolute -top-0 -right-0 min-w-5 h-5 px-1.5 bg-primary text-primary-foreground text-xs font-medium flex items-center justify-center rounded-full shadow-sm">
+                      {item.quantity}
+                    </div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-sm truncate">{item.product?.name}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">
+                      ₹{((item.product?.salePrice || item.product?.price || 0) * item.quantity).toLocaleString('en-IN')}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </ScrollArea>
+
+            <div className="border-t border-border mt-4 pt-4 space-y-2 text-sm">
               <div className="flex justify-between">
                 <span>Subtotal</span>
-                <span>₹{summary.subtotal.toLocaleString('en-IN')}</span>
+                <span>₹{summary.subtotal?.toLocaleString('en-IN')}</span>
               </div>
               
               {summary.discount > 0 && (
                 <div className="flex justify-between">
                   <span>Discount</span>
                   <span className="text-green-600">
-                    -₹{summary.discount.toLocaleString('en-IN')}
+                    -₹{summary.discount?.toLocaleString('en-IN')}
                   </span>
                 </div>
               )}
 
               <div className="flex justify-between">
                 <span>Shipping</span>
-                <span>₹4.90</span>
+                <span>₹40.00</span>
               </div>
 
-              <hr className="border-gray-800 my-4" />
+              <hr className="border-border my-3" />
 
               <div className="flex justify-between font-bold">
-                <span className="text-lg">Total</span>
+                <span className="text-base">Total</span>
                 <div className="text-right">
-                  <div className="text-sm text-gray-400">USD</div>
-                  <div className="text-xl">₹{(summary.total + 4.90).toLocaleString('en-IN')}</div>
+                  <div className="text-xs text-muted-foreground">INR</div>
+                  <div className="text-lg">₹{(summary.total + 40).toLocaleString('en-IN')}</div>
                 </div>
               </div>
             </div>
