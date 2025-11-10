@@ -34,16 +34,12 @@ export default function CartSummary() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cart'] })
-      toast({
-        title: "Success",
-        description: "Cart cleared successfully",
-      })
     }
   })
 
   return (
     <>
-      <div className="border-t bg-background sticky bottom-0 w-full shadow-md">
+      <div className="border-t bg-background w-full shadow-md mt-auto">
         <div className="p-4 space-y-4">
           <div className="space-y-2">
             {/* Subtotal */}

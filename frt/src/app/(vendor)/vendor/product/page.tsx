@@ -25,11 +25,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from '@/hooks/use-toast';
+import { ProductDetailsDrawer } from "@/components/dialogs/product/product-details-drawer";
 
 export default function Page() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  
+  // Product Details Drawer State
+  const [selectedProductId, setSelectedProductId] = useState<string>("");
+  const [isDetailsDrawerOpen, setIsDetailsDrawerOpen] = useState(false);
   
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -204,7 +209,14 @@ export default function Page() {
               </thead>
               <tbody>
                 {productsData?.products.map((product) => (
-                  <tr key={product.id} className="border-b">
+                  <tr 
+                    key={product.id} 
+                    className="border-b cursor-pointer"
+                    onClick={() => {
+                      setSelectedProductId(product.id);
+                      setIsDetailsDrawerOpen(true);
+                    }}
+                  >
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-3">
                         {product.images[0] && (
@@ -249,6 +261,7 @@ export default function Page() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+
                           <DropdownMenuItem
                             className="text-blue-600"
                             onClick={() => {
@@ -308,6 +321,13 @@ export default function Page() {
           </div>
         </div>
       </Card>
+
+      {/* Product Details Drawer */}
+      <ProductDetailsDrawer
+        productId={selectedProductId}
+        isOpen={isDetailsDrawerOpen}
+        onClose={() => setIsDetailsDrawerOpen(false)}
+      />
     </div>
   );
 }

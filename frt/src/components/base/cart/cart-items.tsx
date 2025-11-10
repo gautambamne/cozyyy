@@ -12,6 +12,10 @@ export default function CartItems() {
     const { items, updateItem, removeItem } = useCartStore()
     const { toast } = useToast()
 
+    const containerStyle = items.length === 0 
+        ? "flex-1 flex flex-col items-center justify-center" 
+        : "flex-1 overflow-hidden"
+
     const updateMutation = useMutation({
         mutationFn: async ({ productId, quantity }: { productId: string; quantity: number }) => {
             return await updateItem(productId, quantity)
@@ -26,12 +30,23 @@ export default function CartItems() {
 
     const removeMutation = useMutation({
         mutationFn: async (productId: string) => {
-            return await removeItem(productId)
+            try {
+                return await removeItem(productId);
+            } catch (error: any) {
+                // Throw a more specific error that includes both the error message and the product ID
+                throw new Error(`Failed to remove item: ${error.message}`);
+            }
         },
         onError: (error: any) => {
             toast({
-                title: 'Error removing item',
-                description: error?.message || 'Something went wrong.',
+                title: 'Error',
+                description: error?.message || 'Failed to remove item from cart.',
+            })
+        },
+        onSuccess: () => {
+            toast({
+                title: 'Success',
+                description: 'Item removed from cart successfully.',
             })
         }
     })
@@ -47,7 +62,7 @@ export default function CartItems() {
 
     if (items.length === 0) {
         return (
-            <div className="flex h-[50vh] flex-col items-center justify-center space-y-2">
+            <div className="flex-1 flex flex-col items-center justify-center space-y-2">
                 <h3 className="text-lg font-medium">Your cart is empty</h3>
                 <p className="text-muted-foreground">Add items to your cart to see them here.</p>
             </div>

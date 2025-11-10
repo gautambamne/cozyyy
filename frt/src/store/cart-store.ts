@@ -84,16 +84,25 @@ export const useCartStore = create<CartStore>((set, get) => ({
 
   removeItem: async (productId: string) => {
     try {
-      await CartAction.RemoveFromCartAction({ productId })
-      const cartData = await CartAction.GetCartAction()
+      // First check if the item exists in the cart
+      const currentItems = get().items;
+      const itemExists = currentItems.some(item => item.product.id === productId);
+      
+      if (!itemExists) {
+        throw new Error("Item not found in cart");
+      }
+
+      // Proceed with removal if item exists
+      await CartAction.RemoveFromCartAction({ productId });
+      const cartData = await CartAction.GetCartAction();
       set({ 
         items: cartData.cart.items,
         summary: cartData.cart.summary,
         totalItems: cartData.cart.items.length
-      })
-    } catch (error) {
-      console.error('Failed to remove item from cart:', error)
-      throw error
+      });
+    } catch (error: any) {
+      console.error('Failed to remove item from cart:', error);
+      throw error;
     }
   },
 

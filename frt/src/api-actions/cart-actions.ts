@@ -69,14 +69,26 @@ export const CartAction = {
             const response = await axiosInstance.delete<ApiResponse<IUniversalMessage>>("/cart/remove", {
                 data: data
             });
-            if (!response.data.data) {
-                throw new Error(response.data.apiError?.message || "Failed to remove item from cart");
+            // Check if we have a response with data
+            if (response.data.data) {
+                return response.data.data;
             }
-            return response.data.data;
+            // If no data but we have an API error message, throw that
+            if (response.data.apiError?.message) {
+                throw new Error(response.data.apiError.message);
+            }
+            // Default error message
+            throw new Error("Failed to remove item from cart");
         } catch (error: any) {
-            if (error.response?.data?.apiError) {
+            // Handle API error responses
+            if (error.response?.data?.apiError?.message) {
                 throw new Error(error.response.data.apiError.message);
             }
+            // Handle network or other errors
+            if (error.message) {
+                throw new Error(error.message);
+            }
+            // Fallback error message
             throw new Error("Failed to remove item from cart");
         }
     },
