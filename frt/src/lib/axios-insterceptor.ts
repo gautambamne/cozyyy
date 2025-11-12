@@ -28,23 +28,36 @@ axiosInstance.interceptors.request.use(
     }
 );
 
-
+// Track refresh token requests to prevent multiple simultaneous refreshes
+let refreshTokenPromise: Promise<any> | null = null;
 
 axiosInstance.interceptors.response.use(
     async(response : AxiosResponse) => response,
     async (error: AxiosError<ApiResponse<null>>) => {
         const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
         
+        // Only attempt to refresh token on 401 (Unauthorized)
         if (error.response?.status === 401 && 
             !originalRequest._retry && 
             !originalRequest.url?.includes('/auth/login') && 
-            !originalRequest.url?.includes('/auth/register')) {
+            !originalRequest.url?.includes('/auth/register') &&
+            !originalRequest.url?.includes('/auth/refresh-token')) {
             
             originalRequest._retry = true;
+            
             try {
-                const response = await axios.post<ApiResponse<ILoginResponse>>(`${BACKEND_URL}/auth/refresh-token`,{} , {
-                    withCredentials : true,
-                });
+                // If a refresh is already in progress, wait for it
+                if (!refreshTokenPromise) {
+                    refreshTokenPromise = axios.post<ApiResponse<ILoginResponse>>(
+                        `${BACKEND_URL}/auth/refresh-token`,
+                        {},
+                        { withCredentials: true }
+                    );
+                }
+                
+                const response = await refreshTokenPromise;
+                refreshTokenPromise = null; // Reset after use
+                
                 if (response.data.data?.access_token && response.status === 200) {
                     setCookie('auth_token', response.data.data.access_token, {
                         httpOnly: false,
@@ -52,14 +65,26 @@ axiosInstance.interceptors.response.use(
                     useAuthStore.getState().setLogin(response.data.data);
                     return axiosInstance(originalRequest);
                 }
-            } catch (error) {
-               await AuthAction.LogoutAction();
+            } catch (refreshError) {
+                refreshTokenPromise = null; // Reset on error
+                
+                // Only logout if refresh token also failed
+                try {
+                    await AuthAction.LogoutAction();
+                } catch (logoutError) {
+                    console.error('Logout action failed:', logoutError);
+                }
+                
                 useAuthStore.getState().setLogout();
-                return Promise.reject(error);
+                return Promise.reject(refreshError);
             }
-
         }
-        useAuthStore.getState().setLogout()
+        
+        // Only logout on actual authentication failure, not on other errors
+        if (error.response?.status === 401) {
+            useAuthStore.getState().setLogout();
+        }
+        
         return Promise.reject(error);
     }
 );

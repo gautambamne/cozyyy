@@ -21,7 +21,6 @@ export type PaymentMethod = typeof PaymentMethod[keyof typeof PaymentMethod];
 const CreateOrderSchema = z.object({
     addressId: z.string().uuid('Invalid address ID'),
     paymentMethod: z.enum(['COD', 'CARD', 'ONLINE'])
-        .default('COD')
         .describe('Payment method for the order')
 });
 

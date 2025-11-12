@@ -4,6 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/ui/theme";
 import { Toaster } from "@/components/ui/sonner";
 import ReactQueryProvider from "@/components/provider/query-client";
+import { SessionInitializer } from "@/components/provider/session-initializer";
 import { NuqsAdapter } from 'nuqs/adapters/next/app';
 
 const geistSans = Geist({
@@ -39,6 +40,7 @@ export default function RootLayout({
                 enableSystem
                 disableTransitionOnChange
               >
+            <SessionInitializer />
             {children}
             <Toaster />
             </ThemeProvider>

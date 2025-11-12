@@ -1,27 +1,21 @@
 'use client'
 
-import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { useCartStore } from "@/store/cart-store"
 import { Loader2 } from "lucide-react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { useToast } from "@/hooks/use-toast"
-import { CheckoutDialog } from "@/components/dialogs/checkout/checkout-dialog"
 
 export default function CartSummary() {
-  const { summary, clearCart } = useCartStore()
+  const { summary, clearCart, closeCart } = useCartStore()
   const { toast } = useToast()
   const queryClient = useQueryClient()
-
-  const [showCheckout, setShowCheckout] = useState(false)
+  const router = useRouter()
 
   const handleCheckout = () => {
-    // Just open the checkout dialog, don't close the cart
-    setShowCheckout(true)
-  }
-
-  const handleCheckoutClose = (open: boolean) => {
-    setShowCheckout(open)
+    closeCart()
+    router.push('/order')
   }
 
   const clearMutation = useMutation({
@@ -99,11 +93,6 @@ export default function CartSummary() {
           </div>
         </div>
       </div>
-      
-      <CheckoutDialog 
-        open={showCheckout} 
-        onOpenChange={handleCheckoutClose} 
-      />
     </>
   )
 }

@@ -2,7 +2,15 @@ import { type Prisma } from '@prisma/client';
 import { prisma } from '../db/database';
 import { OrderStatus, PaymentMethod } from '../schema/order.schema';
 
-type OrderWithDetails = Prisma.PromiseReturnType<typeof prisma.order.findFirst> & {
+// Define the shape of order with details
+type OrderWithDetails = {
+    id: string;
+    userId: string;
+    addressId: string;
+    total: number;
+    status: string;
+    createdAt: Date;
+    updatedAt: Date;
     items: Array<{
         id: string;
         productId: string;
@@ -142,7 +150,7 @@ export const OrderRepository = {
 
     // Get a single order
     getOrderById: async(orderId: string, userId?: string): Promise<OrderWithDetails | null> => {
-        const where: Prisma.OrderWhereInput = {
+        const where: any = {
             id: orderId,
             ...(userId && { userId })
         };
@@ -187,7 +195,7 @@ export const OrderRepository = {
         const skip = (page - 1) * limit;
 
         // Build where clause
-        const where: Prisma.OrderWhereInput = {
+        const where: any = {
             userId,
             ...(status && { status }),
             ...(startDate && {
@@ -235,7 +243,7 @@ export const OrderRepository = {
 
     // Update order status
     updateOrderStatus: async(orderId: string, status: OrderStatus, userId?: string): Promise<OrderWithDetails> => {
-        const where: Prisma.OrderWhereUniqueInput = { id: orderId };
+        const where: any = { id: orderId };
 
         // If userId provided, verify ownership
         if (userId) {

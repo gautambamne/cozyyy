@@ -12,10 +12,8 @@ import useAuthStore from '@/store/auth-store'
 import { AuthAction } from '@/api-actions/auth-actions'
 
 const menuItems = [
-    { name: 'Features', href: '#link' },
-    { name: 'Solution', href: '#link' },
-    { name: 'Pricing', href: '#link' },
-    { name: 'About', href: '#link' },
+    { name: 'Features', href: '/products' },
+    { name: 'About', href: '/about' },
 ]
 
 export const Navbar = () => {
