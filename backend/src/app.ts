@@ -11,6 +11,7 @@ import wishlistRouter from './router/wishlist.route'
 import cartRouter from './router/cart.route'
 import addressRouter from './router/address.route'
 import orderRouter from './router/order.routes'
+import paymentRouter from "./router/payment.routes";
 
 const app = express();
 
@@ -35,6 +36,7 @@ app.use('/api/v1/wishlist', wishlistRouter);
 app.use('/api/v1/cart', cartRouter);
 app.use('/api/v1/addresses', addressRouter);
 app.use('/api/v1/orders', orderRouter);
+app.use('/api/v1/payments', paymentRouter);
 
 // Error handling middleware (should be last)
 app.use(errorMiddleware);

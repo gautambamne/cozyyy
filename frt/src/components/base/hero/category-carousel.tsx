@@ -32,7 +32,7 @@ export function CategoryCarousel() {
   }
 
   return (
-    <section id="categories" className="relative py-24 px-6 lg:px-8 bg-gradient-to-b from-white via-amber-50/30 to-white dark:from-neutral-950 dark:via-amber-950/10 dark:to-neutral-950 overflow-hidden">
+    <section id="categories" className="relative py-24 px-6 lg:px-8 bg-linear-to-b from-white via-amber-50/30 to-white dark:from-neutral-950 dark:via-amber-950/10 dark:to-neutral-950 overflow-hidden">
       {/* Decorative Background Elements */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_30%,rgba(251,191,36,0.08),transparent_50%)]" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_70%,rgba(251,191,36,0.05),transparent_50%)]" />
@@ -137,50 +137,45 @@ function CategoryCard({ category, index }: { category: ICategory; index: number 
     <Link href={`/categories/${category.slug}`} className="block">
       <div className="flex flex-col items-center cursor-pointer">
         {/* Circular Image Container - Simplified */}
-        <div className="relative mb-4">
-          {/* Main Circle - No hover effects */}
-          <div className="relative w-32 h-32 sm:w-36 sm:h-36 md:w-40 md:h-40 rounded-full overflow-hidden bg-gradient-to-br from-neutral-100 to-neutral-200 dark:from-neutral-800 dark:to-neutral-900 border-4 border-white dark:border-neutral-950 shadow-lg">
-            {imageLoading ? (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-12 h-12 rounded-full border-4 border-amber-400/30 border-t-amber-600 animate-spin" />
-              </div>
-            ) : previewImage ? (
-              <Image
-                src={previewImage}
-                alt={category.name}
-                fill
-                className="object-cover"
-                sizes="(max-width: 768px) 128px, 160px"
-                priority={false}
-                loading="lazy"
-                quality={85}
-              />
-            ) : (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className={`w-16 h-16 rounded-full bg-gradient-to-br ${gradient} flex items-center justify-center shadow-lg`}>
-                  <svg
-                    className="w-8 h-8 text-white"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"
-                    />
-                  </svg>
+        <div className="relative mb-4 flex items-center justify-center">
+          <div className="relative w-32 h-32 sm:w-36 sm:h-36 md:w-40 md:h-40 rounded-full border-4 border-white dark:border-neutral-950 shadow-lg">
+            <div className="relative h-full w-full overflow-hidden rounded-full bg-linear-to-br from-neutral-100 to-neutral-200 dark:from-neutral-800 dark:to-neutral-900">
+              {imageLoading ? (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-12 h-12 rounded-full border-4 border-amber-400/30 border-t-amber-600 animate-spin" />
                 </div>
-              </div>
-            )}
+              ) : previewImage ? (
+                <Image
+                  src={previewImage}
+                  alt={category.name}
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 768px) 128px, 160px"
+                  priority={false}
+                  loading="lazy"
+                  quality={85}
+                />
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className={`w-16 h-16 rounded-full bg-linear-to-br ${gradient} flex items-center justify-center shadow-lg`}>
+                    <svg
+                      className="w-8 h-8 text-white"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"
+                      />
+                    </svg>
+                  </div>
+                </div>
+              )}
+            </div>
 
-            {/* Product Count Badge - Always visible */}
-            {productCount > 0 && (
-              <div className="absolute -top-2 -right-2 w-10 h-10 rounded-full bg-amber-500 text-white flex items-center justify-center text-xs font-bold shadow-lg border-2 border-white dark:border-neutral-950">
-                {productCount}
-              </div>
-            )}
           </div>
         </div>
 
@@ -201,7 +196,7 @@ function CategoryCard({ category, index }: { category: ICategory; index: number 
 function CategoryCardSkeleton() {
   return (
     <div className="flex flex-col items-center animate-pulse">
-      <div className="w-32 h-32 sm:w-36 sm:h-36 md:w-40 md:h-40 rounded-full bg-gradient-to-br from-neutral-200 to-neutral-300 dark:from-neutral-800 dark:to-neutral-700 mb-4 border-4 border-white dark:border-neutral-950 shadow-xl" />
+      <div className="w-32 h-32 sm:w-36 sm:h-36 md:w-40 md:h-40 rounded-full bg-linear-to-br from-neutral-200 to-neutral-300 dark:from-neutral-800 dark:to-neutral-700 mb-4 border-4 border-white dark:border-neutral-950 shadow-xl" />
       <div className="space-y-2 text-center">
         <Skeleton className="h-5 w-24 mx-auto" />
         <Skeleton className="h-3 w-16 mx-auto" />
