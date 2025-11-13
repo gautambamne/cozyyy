@@ -1,11 +1,7 @@
 import axiosInstance from "@/lib/axios-insterceptor";
 
-
-
 export const PaymentAction = {
-  /**
-   * Create a payment intent for Stripe
-   */
+
   CreatePaymentIntentAction: async (
     data: ICreatePaymentIntentRequest
   ): Promise<ICreatePaymentIntentResponse> => {
@@ -21,9 +17,7 @@ export const PaymentAction = {
     return response.data.data;
   },
 
-  /**
-   * Get payment intent details
-   */
+
   GetPaymentIntentAction: async (paymentIntentId: string) => {
     const response = await axiosInstance.get<ApiResponse<any>>(
       `/payments/payment-intent/${paymentIntentId}`
@@ -36,9 +30,7 @@ export const PaymentAction = {
     return response.data.data;
   },
 
-  /**
-   * Create a Stripe Checkout session
-   */
+
   CreateCheckoutSessionAction: async (
     data: ICreateCheckoutSessionRequest
   ): Promise<ICreateCheckoutSessionResponse> => {
@@ -54,9 +46,7 @@ export const PaymentAction = {
     return response.data.data;
   },
 
-  /**
-   * Get Stripe configuration (publishable key)
-   */
+ 
   GetStripeConfigAction: async (): Promise<IStripeConfigResponse> => {
     const response = await axiosInstance.get<ApiResponse<IStripeConfigResponse>>(
       "/payments/config"

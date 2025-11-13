@@ -9,7 +9,7 @@ if (!process.env.STRIPE_SECRET_KEY) {
 
 // Initialize Stripe with your secret key
 export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-    apiVersion: '2025-10-29.clover', // Use latest API version
+    apiVersion: '2025-10-29.clover',
     typescript: true,
 });
 
@@ -100,17 +100,26 @@ export async function createCheckoutSession(
     lineItems: Stripe.Checkout.SessionCreateParams.LineItem[],
     successUrl: string,
     cancelUrl: string,
-    metadata: Record<string, string> = {}
+    metadata: Record<string, string> = {},
+    paymentIntentMetadata: Record<string, string> = {}
 ) {
     try {
-        const session = await stripe.checkout.sessions.create({
+        const sessionPayload: Stripe.Checkout.SessionCreateParams = {
             payment_method_types: ['card'],
             line_items: lineItems,
             mode: 'payment',
             success_url: successUrl,
             cancel_url: cancelUrl,
             metadata,
-        });
+        };
+
+        if (Object.keys(paymentIntentMetadata).length) {
+            sessionPayload.payment_intent_data = {
+                metadata: paymentIntentMetadata,
+            };
+        }
+
+        const session = await stripe.checkout.sessions.create(sessionPayload);
 
         return session;
     } catch (error) {
@@ -125,13 +134,13 @@ export async function createCheckoutSession(
  * @param signature - The Stripe signature header
  * @param webhookSecret - Your webhook secret
  */
-export function constructWebhookEvent(
+export async function constructWebhookEvent(
     payload: string | Buffer,
     signature: string,
     webhookSecret: string
 ) {
     try {
-        const event = stripe.webhooks.constructEvent(
+        const event = await stripe.webhooks.constructEventAsync(
             payload,
             signature,
             webhookSecret

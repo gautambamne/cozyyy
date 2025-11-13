@@ -29,11 +29,16 @@ export const CreateOrderController = asyncHandler(async (req: Request, res: Resp
     const { addressId, paymentMethod } = result.data;
     const userId = req.user.id;
 
+    console.log(`[Order] Creating order for user: ${userId}, Address: ${addressId}, Payment method: ${paymentMethod}`);
+
     // Verify address exists and belongs to user
     const address = await AddressRepository.getAddressById(addressId, userId);
     if (!address) {
+        console.error(`[Order] Address not found: ${addressId} for user: ${userId}`);
         throw new ApiError(404, "Delivery address not found");
     }
+
+    console.log(`[Order] Address verified - ${address.city}, ${address.state}`);
 
     // Check if cart has items
     const { items, summary } = await CartRepository.getAllCartItems({
@@ -42,32 +47,50 @@ export const CreateOrderController = asyncHandler(async (req: Request, res: Resp
     });
 
     if (!items.length) {
+        console.error(`[Order] Cart is empty for user: ${userId}`);
         throw new ApiError(400, "Cart is empty");
     }
 
+    console.log(`[Order] Cart validated - Items: ${items.length}, Subtotal: ${summary.subtotal}, Total: ${summary.total}`);
+
     // Verify product availability and stock
+    console.log(`[Order] Validating ${items.length} products for availability and stock`);
     for (const item of items) {
         if (!item.product.isActive) {
+            console.error(`[Order] Product inactive: ${item.product.name} (ID: ${item.productId})`);
             throw new ApiError(400, `Product ${item.product.name} is no longer available`);
         }
         if (item.product.stock < item.quantity) {
+            console.error(`[Order] Insufficient stock for ${item.product.name} - Required: ${item.quantity}, Available: ${item.product.stock}`);
             throw new ApiError(400, `Only ${item.product.stock} units of ${item.product.name} available`);
         }
     }
+    console.log(`[Order] All products validated successfully`);
 
     // Create order
-    const order = await OrderRepository.createOrder({
-        userId,
-        addressId,
-        paymentMethod
-    });
+    console.log(`[Order] Creating order in database for user: ${userId}`);
+    
+    try {
+        const order = await OrderRepository.createOrder({
+            userId,
+            addressId,
+            paymentMethod
+        });
 
-    res.status(201).json(
-        new ApiResponse({
+        console.log(`[Order] Order created successfully - Order ID: ${order.id}, Status: ${order.status}, Total: ${order.total}`);
+
+        const responseData = new ApiResponse({
             order,
             message: "Order placed successfully"
-        })
-    );
+        });
+
+        console.log(`[Order] Sending response to frontend - Order ID: ${order.id}`);
+        
+        res.status(201).json(responseData);
+    } catch (error: any) {
+        console.error(`[Order] Failed to create order: ${error.message}`);
+        throw new ApiError(500, `Failed to create order: ${error.message}`);
+    }
 });
 
 /**
@@ -151,7 +174,10 @@ export const UpdateOrderStatusController = asyncHandler(async (req: Request, res
     const { id } = paramResult.data;
     const { status } = bodyResult.data;
 
+    console.log(`[Order] Updating order status - Order ID: ${id}, New status: ${status}, Updated by: ${req.user.id}`);
     const order = await OrderRepository.updateOrderStatus(id, status);
+
+    console.log(`[Order] Order ${id} status updated successfully from ${order.status} to ${status}`);
 
     res.status(200).json(
         new ApiResponse({
@@ -181,16 +207,22 @@ export const CancelOrderController = asyncHandler(async (req: Request, res: Resp
     const userId = req.user.id;
 
     // Verify order exists and belongs to user
+    console.log(`[Order] Cancelling order: ${id} for user: ${userId}`);
     const existingOrder = await OrderRepository.getOrderById(id, userId);
     if (!existingOrder) {
+        console.error(`[Order] Order not found: ${id} for user: ${userId}`);
         throw new ApiError(404, "Order not found");
     }
 
     if (!['PENDING', 'CONFIRMED'].includes(existingOrder.status)) {
+        console.error(`[Order] Cannot cancel order ${id} - Current status: ${existingOrder.status}`);
         throw new ApiError(400, "Order cannot be cancelled");
     }
 
+    console.log(`[Order] Order ${id} eligible for cancellation - Items: ${existingOrder.items.length}, Total: ${existingOrder.total}`);
     const cancelledOrder = await OrderRepository.cancelOrder(id, userId);
+
+    console.log(`[Order] Order ${id} cancelled successfully - Stock restored for ${existingOrder.items.length} items`);
 
     res.status(200).json(
         new ApiResponse({

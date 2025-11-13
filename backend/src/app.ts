@@ -11,14 +11,20 @@ import wishlistRouter from './router/wishlist.route'
 import cartRouter from './router/cart.route'
 import addressRouter from './router/address.route'
 import orderRouter from './router/order.routes'
+import { StripeWebhookController } from './controllers/payment.controller';
 import paymentRouter from "./router/payment.routes";
 
 const app = express();
 
 app.use(cors({
     origin: 'http://localhost:3000',
-    credentials: true
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
 }))
+
+// Stripe webhook route MUST be before express.json() to get raw body
+app.post('/api/v1/payments/webhook', express.raw({ type: 'application/json' }), StripeWebhookController);
 
 app.use(express.urlencoded({extended: true}))
 app.use(express.json({

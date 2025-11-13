@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { Search, MoreVertical, Edit, Trash2, Plus, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as CategoryAction from "@/api-actions/category-actions";
-import type { ICategory } from "@/types/category";
 import axiosInstance from "@/lib/axios-insterceptor";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
