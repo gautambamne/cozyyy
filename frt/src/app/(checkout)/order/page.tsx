@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AddressAction } from '@/api-actions/address-actions'
 import { OrderAction } from '@/api-actions/order-actions'
+import { PaymentAction } from '@/api-actions/payment-actions'
 import { Loader2, MapPin, Phone, Check, Plus, MoreVertical, ArrowRight, ShieldCheck, Truck, Sparkles } from 'lucide-react'
 import type { ICreateOrderSchema } from '@/schema/order-sceham'
 import {
@@ -148,34 +149,53 @@ export default function OrderPage() {
       return await OrderAction.CreateOrderAction(data)
     },
     onSuccess: async (data) => {
-      // Only clear cart after successful order creation
+      console.log('Order created successfully:', data)
+      
+      // Handle CARD payment method - redirect to Stripe Checkout
+      if (selectedPaymentMethod === 'CARD' && data.order?.id) {
+        try {
+          toast({
+            title: 'Creating Payment Session',
+            description: 'Redirecting to payment page...',
+          })
+          
+          // Create Stripe Checkout Session
+          const checkoutSession = await PaymentAction.CreateCheckoutSessionAction({
+            orderId: data.order.id,
+            successUrl: `${window.location.origin}/success?session_id={CHECKOUT_SESSION_ID}`,
+            cancelUrl: `${window.location.origin}/order?canceled=true`,
+          })
+          
+          // Redirect to Stripe Checkout
+          if (checkoutSession.url) {
+            window.location.href = checkoutSession.url
+          } else {
+            throw new Error('No checkout URL received')
+          }
+        } catch (error) {
+          console.error('Failed to create checkout session:', error)
+          toast({
+            title: 'Payment Error',
+            description: error instanceof Error ? error.message : 'Failed to initialize payment. Please try again.',
+          })
+        }
+        return // Don't clear cart yet, wait for payment confirmation via webhook
+      }
+      
+      // For COD and other payment methods, clear cart immediately
       try {
-        // Clear cart without optimistic update to ensure it only clears after order is confirmed
         await useCartStore.getState().clearCart()
         
-        // Invalidate queries to refresh data
         queryClient.invalidateQueries({ queryKey: ['cart'] })
         queryClient.invalidateQueries({ queryKey: ['orders'] })
         
-        // Handle payment intent for CARD payments
-        if (data.paymentIntent && selectedPaymentMethod === 'CARD') {
-          toast({
-            title: 'Order Placed',
-            description: 'Please complete the payment to confirm your order.',
-          })
-          // TODO: Redirect to payment page or show payment modal
-          // For now, redirect to success page
-          router.push('/success')
-        } else {
-          toast({
-            title: 'Success',
-            description: 'Order placed successfully!',
-          })
-          router.push('/success')
-        }
+        toast({
+          title: 'Success',
+          description: 'Order placed successfully!',
+        })
+        router.push('/success')
       } catch (error) {
         console.error('Failed to clear cart after order:', error)
-        // Even if cart clear fails, order is created, so proceed
         toast({
           title: 'Order Placed',
           description: 'Order created successfully. Please refresh your cart.',

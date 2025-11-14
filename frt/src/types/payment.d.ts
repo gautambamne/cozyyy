@@ -12,6 +12,7 @@ interface ICreatePaymentIntentResponse {
 }
 
 interface ICreateCheckoutSessionRequest {
+  orderId: string;
   successUrl: string;
   cancelUrl: string;
 }
