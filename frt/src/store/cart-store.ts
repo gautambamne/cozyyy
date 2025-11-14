@@ -129,22 +129,40 @@ export const useCartStore = create<CartStore>()(
         }
       },
 
-      clearCart: async () => {
+      clearCart: async (skipOptimisticUpdate = false) => {
         try {
-          // Optimistic update - clear immediately
+          // Only clear optimistically if not called from order creation
+          if (!skipOptimisticUpdate) {
+            set({ 
+              items: [],
+              summary: initialSummary,
+              totalItems: 0
+            })
+          }
+          
+          // Call API and wait for response
+          await CartAction.ClearCartAction()
+          
+          // Update state after successful API call
           set({ 
             items: [],
             summary: initialSummary,
             totalItems: 0
           })
-          
-          // Call API in background without blocking
-          CartAction.ClearCartAction().catch((error) => {
-            console.error('Failed to clear cart:', error)
-            // Re-sync if API fails
-          })
         } catch (error) {
           console.error('Failed to clear cart:', error)
+          // Re-sync cart from server if clear fails
+          try {
+            const cartData = await CartAction.GetCartAction()
+            set({ 
+              items: cartData.cart.items,
+              summary: cartData.cart.summary,
+              totalItems: cartData.cart.items.length
+            })
+          } catch (syncError) {
+            console.error('Failed to re-sync cart after clear error:', syncError)
+          }
+          throw error
         }
       },
     }),

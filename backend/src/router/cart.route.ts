@@ -3,6 +3,7 @@ import { AuthMiddleware } from '../middleware/auth.middlewate';
 import {
     AddToCartController,
     GetCartController,
+    GetCartItemByIdController,
     UpdateCartItemController,
     RemoveFromCartController,
     ClearCartController,
@@ -14,6 +15,7 @@ const router = Router();
 router.use(AuthMiddleware);
 
 router.get('/', GetCartController);
+router.get('/:id', GetCartItemByIdController);
 router.post('/add', AddToCartController);
 router.put('/update', UpdateCartItemController);
 router.delete('/remove', RemoveFromCartController);

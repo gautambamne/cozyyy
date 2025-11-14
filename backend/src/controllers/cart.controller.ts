@@ -7,6 +7,7 @@ import {
   CreateCartItemSchema,
   UpdateCartItemSchema,
   GetCartQuerySchema,
+  GetCartItemSchema,
   DeleteCartItemSchema
 } from "../schema/cart.schema";
 import asyncHandler from "../utils/asynchandler";
@@ -108,6 +109,40 @@ export const GetCartController = asyncHandler(async (req: Request, res: Response
       },
       pagination,
       message: "Cart retrieved successfully"
+    })
+  );
+});
+
+/**
+ * Get Cart Item By ID Controller
+ * Retrieves a single cart item by its ID with user validation
+ */
+export const GetCartItemByIdController = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user?.id) throw new ApiError(401, "Unauthorized");
+
+  const result = GetCartItemSchema.safeParse(req.params);
+  if (!result.success) {
+    throw new ApiError(400, "Validation Error", zodErrorFormatter(result.error));
+  }
+
+  const { id } = result.data;
+  const userId = req.user.id;
+
+  const cartItem = await CartRepository.getCartItemById(id);
+  
+  if (!cartItem) {
+    throw new ApiError(404, "Cart item not found");
+  }
+
+  // Verify the cart item belongs to the authenticated user
+  if (cartItem.userId !== userId) {
+    throw new ApiError(403, "Forbidden: Cart item does not belong to you");
+  }
+
+  res.status(200).json(
+    new ApiResponse({
+      cartItem,
+      message: "Cart item retrieved successfully"
     })
   );
 });

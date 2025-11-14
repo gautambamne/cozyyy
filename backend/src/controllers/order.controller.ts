@@ -6,6 +6,8 @@ import { CartRepository } from "../repositories/cart.repositories";
 import { AddressRepository } from "../repositories/address.repositories";
 import asyncHandler from "../utils/asynchandler";
 import { zodErrorFormatter } from "../utils/error-formater";
+import { createPaymentIntent } from "../utils/stripe";
+import { PaymentMethod } from "../schema/order.schema";
 import {
     CreateOrderSchema,
     UpdateOrderSchema,
@@ -79,9 +81,54 @@ export const CreateOrderController = asyncHandler(async (req: Request, res: Resp
 
         console.log(`[Order] Order created successfully - Order ID: ${order.id}, Status: ${order.status}, Total: ${order.total}`);
 
+        // If payment method is CARD, create Stripe payment intent automatically
+        let paymentIntent = null;
+        if (paymentMethod === PaymentMethod.CARD && order.payment) {
+            try {
+                console.log(`[Order] Creating Stripe payment intent for order: ${order.id}, Amount: ${order.total} INR`);
+                paymentIntent = await createPaymentIntent(
+                    order.total,
+                    'inr',
+                    {
+                        userId,
+                        orderId: order.id,
+                    }
+                );
+
+                // Update payment record with Stripe payment ID
+                const { prisma } = await import("../db/database");
+                await prisma.payment.update({
+                    where: { id: order.payment.id },
+                    data: { stripePaymentId: paymentIntent.id }
+                });
+
+                console.log(`[Order] Stripe payment intent created successfully: ${paymentIntent.id} for order: ${order.id}`);
+            } catch (stripeError: any) {
+                console.error(`[Order] Failed to create Stripe payment intent: ${stripeError.message}`);
+                // Don't fail the order creation - order is already created
+                // Payment intent can be created later via the payment endpoint if needed
+            }
+        }
+
         const responseData = new ApiResponse({
-            order,
-            message: "Order placed successfully"
+            order: {
+                ...order,
+                payment: order.payment ? {
+                    ...order.payment,
+                    stripePaymentId: paymentIntent?.id || order.payment.stripePaymentId
+                } : null
+            },
+            ...(paymentIntent && {
+                paymentIntent: {
+                    clientSecret: paymentIntent.client_secret,
+                    paymentIntentId: paymentIntent.id,
+                    amount: order.total,
+                    currency: paymentIntent.currency
+                }
+            }),
+            message: paymentMethod === PaymentMethod.CARD && paymentIntent
+                ? "Order placed successfully. Please complete the payment."
+                : "Order placed successfully"
         });
 
         console.log(`[Order] Sending response to frontend - Order ID: ${order.id}`);

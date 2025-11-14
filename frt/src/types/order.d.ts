@@ -47,8 +47,16 @@ interface IPayment {
   updatedAt: string
 }
 
+interface IPaymentIntent {
+  clientSecret: string;
+  paymentIntentId: string;
+  amount: number;
+  currency: string;
+}
+
 interface ICreateOrderResponse { //same for cancel order , get product by by id, for update order status
     order: IOrder
+    paymentIntent?: IPaymentIntent; // Only present for CARD payments
     message: string
 }
 

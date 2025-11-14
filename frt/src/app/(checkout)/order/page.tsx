@@ -45,11 +45,18 @@ export default function OrderPage() {
   const router = useRouter()
   const { toast } = useToast()
   const queryClient = useQueryClient()
-  const { items, summary } = useCartStore()
+  const { items, summary, initializeCart } = useCartStore()
   const [selectedAddressId, setSelectedAddressId] = useState<string>('')
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>('COD')
   const [isAddressDialogOpen, setIsAddressDialogOpen] = useState(false)
   const [editingAddressId, setEditingAddressId] = useState<string | null>(null)
+
+  // Initialize cart on mount to ensure it's synced
+  useEffect(() => {
+    initializeCart().catch((error) => {
+      console.error('Failed to initialize cart:', error)
+    })
+  }, [initializeCart])
 
   // Form setup
   const form = useForm<ICreateAddressSchema>({
@@ -141,20 +148,49 @@ export default function OrderPage() {
       return await OrderAction.CreateOrderAction(data)
     },
     onSuccess: async (data) => {
-      toast({
-        title: 'Success',
-        description: 'Order placed successfully!',
-      })
-      
-      useCartStore.getState().clearCart().catch((error) => {
+      // Only clear cart after successful order creation
+      try {
+        // Clear cart without optimistic update to ensure it only clears after order is confirmed
+        await useCartStore.getState().clearCart()
+        
+        // Invalidate queries to refresh data
+        queryClient.invalidateQueries({ queryKey: ['cart'] })
+        queryClient.invalidateQueries({ queryKey: ['orders'] })
+        
+        // Handle payment intent for CARD payments
+        if (data.paymentIntent && selectedPaymentMethod === 'CARD') {
+          toast({
+            title: 'Order Placed',
+            description: 'Please complete the payment to confirm your order.',
+          })
+          // TODO: Redirect to payment page or show payment modal
+          // For now, redirect to success page
+          router.push('/success')
+        } else {
+          toast({
+            title: 'Success',
+            description: 'Order placed successfully!',
+          })
+          router.push('/success')
+        }
+      } catch (error) {
         console.error('Failed to clear cart after order:', error)
-      })
-      
-      queryClient.invalidateQueries({ queryKey: ['cart'] })
-      queryClient.invalidateQueries({ queryKey: ['orders'] })
-      router.push('/success')
+        // Even if cart clear fails, order is created, so proceed
+        toast({
+          title: 'Order Placed',
+          description: 'Order created successfully. Please refresh your cart.',
+        })
+        router.push('/success')
+      }
     },
-    onError: (error) => {
+    onError: async (error) => {
+      // Re-sync cart from server on error to ensure it's not lost
+      try {
+        await useCartStore.getState().initializeCart()
+      } catch (syncError) {
+        console.error('Failed to re-sync cart after order error:', syncError)
+      }
+      
       toast({
         title: 'Error',
         description: error instanceof Error ? error.message : 'Failed to create order',
@@ -191,6 +227,7 @@ export default function OrderPage() {
   }
 
   const handlePlaceOrder = async () => {
+    // Validate address
     if (!selectedAddressId) {
       toast({
         title: 'Error',
@@ -198,13 +235,38 @@ export default function OrderPage() {
       })
       return
     }
+    
+    // Validate cart - check both local state and ensure it's synced
     if (items.length === 0) {
       toast({
         title: 'Error',
-        description: 'Your cart is empty',
+        description: 'Your cart is empty. Please add items to your cart.',
       })
+      // Try to re-sync cart in case it's out of sync
+      try {
+        await useCartStore.getState().initializeCart()
+      } catch (error) {
+        console.error('Failed to sync cart:', error)
+      }
       return
     }
+    
+    // Validate summary
+    if (!summary || summary.total <= 0) {
+      toast({
+        title: 'Error',
+        description: 'Invalid cart total. Please refresh and try again.',
+      })
+      // Re-sync cart
+      try {
+        await useCartStore.getState().initializeCart()
+      } catch (error) {
+        console.error('Failed to sync cart:', error)
+      }
+      return
+    }
+    
+    // Proceed with order creation
     const orderData: ICreateOrderSchema = {
       addressId: selectedAddressId,
       paymentMethod: selectedPaymentMethod as any,

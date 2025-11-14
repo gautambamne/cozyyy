@@ -32,7 +32,7 @@ export const CartRepository = {
         return cartItem;
     },
 
-    // Get a single cart item
+    // Get a single cart item by ID with product details
     getCartItemById: async(id: string): Promise<CartItem|null> => {
         const cartItem = await prisma.cartItem.findUnique({
             where: { id },
