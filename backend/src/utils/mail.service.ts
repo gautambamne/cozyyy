@@ -40,7 +40,7 @@ class EmailQueue {
     private async sendEmail(options: EmailOptions): Promise<void> {
         const transporter = getEmailTransporter();
         await transporter.sendMail({
-            from: `"${process.env.EMAIL_FROM_NAME || 'Cozy'}" <${process.env.EMAIL_USER}>`,
+            from: `"${process.env.EMAIL_FROM_NAME || 'Glamour'}" <${process.env.EMAIL_USER}>`,
             to: options.to,
             subject: options.subject,
             html: options.html,
@@ -130,14 +130,14 @@ const getEmailTemplate = (title: string, content: string): string => {
     <body>
         <div class="container">
             <div class="header">
-                <div class="logo">Cozy</div>
+                <div class="logo">Glamour</div>
             </div>
             <div class="content">
                 ${content}
             </div>
             <div class="footer">
                 <p>This is an automated email. Please do not reply to this message.</p>
-                <p>&copy; ${new Date().getFullYear()} Cozy. All rights reserved.</p>
+                <p>&copy; ${new Date().getFullYear()} Glamour. All rights reserved.</p>
             </div>
         </div>
     </body>
@@ -150,18 +150,18 @@ export const EmailService = {
   
     sendVerificationEmail: async (email: string, code: string, name: string): Promise<void> => {
         const content = `
-            <h2>Welcome to Cozy, ${name}!</h2>
+            <h2>Welcome to Glamour, ${name}!</h2>
             <p>Thank you for registering. To complete your registration, please verify your email address using the code below:</p>
             <div class="otp-code">
                 <div class="otp-code-value">${code}</div>
                 <div class="expiry-text">This code will expire in 10 minutes</div>
             </div>
-            <p>If you didn't create an account with Cozy, please ignore this email.</p>
+            <p>If you didn't create an account with Glamour, please ignore this email.</p>
         `;
 
         await emailQueue.add({
             to: email,
-            subject: 'Verify Your Email - Cozy',
+            subject: 'Verify Your Email - Glamour',
             html: getEmailTemplate('Email Verification', content),
         });
     },
@@ -183,7 +183,7 @@ export const EmailService = {
 
         await emailQueue.add({
             to: email,
-            subject: 'Password Reset Request - Cozy',
+            subject: 'Password Reset Request - Glamour',
             html: getEmailTemplate('Password Reset', content),
         });
     },
@@ -203,7 +203,7 @@ export const EmailService = {
 
         await emailQueue.add({
             to: email,
-            subject: 'Verification Code Resent - Cozy',
+            subject: 'Verification Code Resent - Glamour',
             html: getEmailTemplate('Verification Code', content),
         });
     },

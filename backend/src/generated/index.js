@@ -260,7 +260,7 @@ const config = {
       "value": "prisma-client-js"
     },
     "output": {
-      "value": "C:\\Users\\gauta\\OneDrive\\Desktop\\brandora\\backend\\src\\generated",
+      "value": "C:\\Users\\gauta\\OneDrive\\Desktop\\Projects\\brandora\\backend\\src\\generated",
       "fromEnvVar": null
     },
     "config": {
@@ -274,7 +274,7 @@ const config = {
       }
     ],
     "previewFeatures": [],
-    "sourceFilePath": "C:\\Users\\gauta\\OneDrive\\Desktop\\brandora\\backend\\prisma\\schema.prisma",
+    "sourceFilePath": "C:\\Users\\gauta\\OneDrive\\Desktop\\Projects\\brandora\\backend\\prisma\\schema.prisma",
     "isCustomOutput": true
   },
   "relativeEnvPaths": {

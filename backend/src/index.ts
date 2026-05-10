@@ -10,4 +10,4 @@ database()
     })
 }).catch((err)=>{
     console.log("Connection failed to database", err)
-})
+})  
