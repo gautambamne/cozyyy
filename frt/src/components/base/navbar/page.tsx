@@ -97,7 +97,7 @@ export const Navbar = () => {
                                 href="/"
                                 aria-label="home"
                                 className="text-lg font-semibold">
-                                Cozy Girlyy
+                                Glamour
                             </Link>
 
                             <Button

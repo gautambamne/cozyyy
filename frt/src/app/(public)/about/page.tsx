@@ -10,7 +10,7 @@ export default function AboutPage() {
         <p className="text-base md:text-sm leading-relaxed text-gray-700 dark:text-gray-300 text-justify m-0">
           Our journey began with a simple dream – to create jewelry and accessories 
           that make every woman feel beautiful, confident, and uniquely herself. 
-          Founded with love and passion for delicate craftsmanship, Cozy Girlyy started 
+          Founded with love and passion for delicate craftsmanship, Glamour started 
           as a small collection of handpicked pieces that celebrated femininity and 
           individuality. Each design tells a story, inspired by the modern woman who 
           embraces both strength and softness, elegance and playfulness.
@@ -32,7 +32,7 @@ export default function AboutPage() {
       <section className="mb-12 md:mb-8">
         <h2 className="text-xl md:text-lg font-semibold mb-5 md:mb-3 text-black dark:text-white">Quality & Care</h2>
         <p className="text-base md:text-sm leading-relaxed text-gray-700 dark:text-gray-300 text-justify m-0">
-          At Cozy Girlyy, quality is at the heart of everything we do. We partner with 
+          At Glamour, quality is at the heart of everything we do. We partner with 
           trusted artisans and suppliers who share our commitment to excellence. Every 
           piece undergoes careful inspection to ensure it meets our high standards for 
           craftsmanship, durability, and beauty. We use quality materials that are gentle 
@@ -48,7 +48,7 @@ export default function AboutPage() {
           We promise to continue bringing you beautiful, affordable jewelry and accessories 
           that make you feel special every single day. Whether you're treating yourself or 
           finding the perfect gift for someone you love, we're honored to be part of your 
-          journey. Thank you for choosing Cozy Girlyy – where every piece is made with love, 
+          journey. Thank you for choosing Glamour – where every piece is made with love, 
           for women who deserve to shine.
         </p>
       </section>

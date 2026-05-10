@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter } from "next/navigation";
 import { Search, MoreVertical, Edit, Trash2, Plus, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -102,7 +102,9 @@ const Page = () => {
       </div>
 
       {/* Category Dialog */}
-      <CategoryDialog />
+      <Suspense fallback={null}>
+        <CategoryDialog />
+      </Suspense>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">

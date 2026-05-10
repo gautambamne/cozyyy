@@ -47,7 +47,7 @@ export function Sidebar() {
       {/* Header */}
       <div className="flex h-14 items-center border-b px-4">
         <Link href="/">
-          <h2 className="text-lg font-semibold hover:text-primary transition-colors">Cozy Girlyy</h2>
+          <h2 className="text-lg font-semibold hover:text-primary transition-colors">Glamour</h2>
         </Link>
       </div>
 

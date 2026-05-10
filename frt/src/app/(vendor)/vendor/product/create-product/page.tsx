@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
@@ -67,7 +67,7 @@ interface Product {
   salePrice?: number | null;
 }
 
-export default function ProductFormPage() {
+function ProductFormContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const productId = searchParams.get('id');
@@ -375,7 +375,7 @@ export default function ProductFormPage() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {!categoriesLoading && categories?.categories.map((category) => (
+                          {!categoriesLoading && categories?.categories.map((category: any) => (
                             <SelectItem key={category.id} value={category.id}>
                               {category.name}
                             </SelectItem>
@@ -630,5 +630,13 @@ export default function ProductFormPage() {
         </Form>
       </div>
     </div>
+  );
+}
+
+export default function ProductFormPage() {
+  return (
+    <Suspense fallback={<div className="container py-8 flex justify-center items-center min-h-[400px]"><div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"></div></div>}>
+      <ProductFormContent />
+    </Suspense>
   );
 }

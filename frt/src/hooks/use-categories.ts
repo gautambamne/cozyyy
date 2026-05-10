@@ -1,6 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
 import { CategoryAction } from "@/api-actions/category-actions";
-import type { IGetCategoryResposne } from "@/types/category";
 import { IGetCategoriesQuerySchema } from "@/schema/category-schema";
 
 const categoryKeys = {

@@ -33,6 +33,10 @@ app.use(express.json({
 app.use(express.static('public'))
 app.use(cookieParser())
 
+app.get("/", (req, res) => {
+  res.send("Backend is running");
+});
+
 // Routes
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/session', sessionRouter);

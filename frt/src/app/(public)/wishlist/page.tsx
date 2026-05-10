@@ -61,10 +61,6 @@ export default function WishlistPage() {
     }
   })
 
-  const handleAddToCart = (productId: string) => {
-    console.log("Added to cart:", productId)
-    // Add your cart logic here
-  }
 
   if (isLoading) {
     return (
@@ -158,7 +154,6 @@ export default function WishlistPage() {
               <ProductCard 
                 key={item.product.id}
                 product={product}
-                onAddToCart={handleAddToCart}
               />
             );
           })}
